@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const residentSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -7,4 +7,6 @@ const residentSchema = new mongoose.Schema({
   verified: { type: Boolean, default: false },
 });
 
-module.exports = mongoose.model('Resident', residentSchema);
+const Resident = mongoose.model('Resident', residentSchema);
+export default Resident;
+

@@ -1,5 +1,5 @@
 import express  from 'express';
-import Resident from '../Models/requser.js';
+import Resident from '../models/requser.js';
 const router = express.Router();
 
 router.post('/add', async (req, res) => {
