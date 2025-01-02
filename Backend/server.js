@@ -15,7 +15,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' })); // Set limit to 10MB for request body
 
 // Routes
-app.get("/", (req, res) => res.send("Hello"));
+app.get("/", (req, res) => res.send("Hello Nishana"));
 
 // Register routes
 
