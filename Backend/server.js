@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
 import userRoute from './Routes/userRoute.js';
-import GRoute from './Routes/governmentRoute.js'
+import governmentRoute from './Routes/governmentRoute.js'
 
 
 dotenv.config();
@@ -21,7 +21,7 @@ app.get("/", (req, res) => res.send("Hello Nishana"));
 // Register routes
 
 app.use('/user', userRoute);
-app.use('/government', GRoute);
+app.use('/government', governmentRoute);
 
 
 // Connect to MongoDB
