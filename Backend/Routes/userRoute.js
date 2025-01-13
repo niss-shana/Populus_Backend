@@ -58,6 +58,24 @@ router.post('/resident_login', async (req, res) => {
     res.status(500).json({ error: 'Login failed' });
     }
 });
+router.get('/check-username/:username', async (req, res) => {
+  const { username } = req.params;
 
+  try {
+    // Check if the username exists in the database
+    const existingUser = await RequestUsers.findOne({ username });
+
+    if (existingUser) {
+      // Username is already taken
+      return res.json({ available: false });
+    }
+
+    // Username is available
+    res.json({ available: true });
+  } catch (error) {
+    console.error('Error checking username availability:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 export default router;
