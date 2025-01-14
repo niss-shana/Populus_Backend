@@ -22,7 +22,7 @@ router.post('/signup', async (req, res) => {
 
 router.get('/unverified-users', async (req, res) => {
   try {
-    const users = await RequestUsers.find({ isVerified: false });
+    const users = await RequestUsers.find({ verified: false });
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
