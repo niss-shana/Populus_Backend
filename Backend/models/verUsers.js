@@ -16,7 +16,7 @@ const residentSchema = new mongoose.Schema({
   username: {type: String, required: true},
   password: {type: String, required: true},
   presidentId: {  type: String},
-  verified: { type: Boolean, default: false },
+  
 });
 
 

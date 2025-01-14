@@ -15,7 +15,7 @@ const residentSchema = new mongoose.Schema({
   mappedHouse: { type: String },
   username: {type: String},
   password: {type: String},
-  verified: { type: Boolean, default: false },
+
 });
 
 
