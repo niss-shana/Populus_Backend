@@ -60,7 +60,6 @@ router.post('/resident_login', async (req, res) => {
 });
 router.get('/check-username/:username', async (req, res) => {
   const { username } = req.params;
-
   try {
     // Check if the username exists in the database
     const existingUser = await RequestUsers.findOne({ username });
