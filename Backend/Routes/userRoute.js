@@ -60,4 +60,33 @@ router.post('/resident_login', async (req, res) => {
 });
 
 
+router.post('/map', async (req, res) => {
+  try {
+    console.log("ethi")
+    const data = await RequestUsers.find(); // Fetch data from the database
+    console.log(data);
+
+    if (!data) {
+      console.log("error");
+      return res.status(401).json({ success: false, error: "No data found" }); // Send error message if data is not found
+    }
+    
+    // Send data to the frontend with a success message
+    res.status(200).json({ 
+      success: true,
+      message: "Data fetched successfully",
+      data: data 
+    });
+  } catch (error) {
+    console.error(error); // Log the error for debugging
+    res.status(500).json({ success: false, error: "Internal Server Error" }); // Send error response
+  }
+});
+
+
+
+
+
+
+
 export default router;
