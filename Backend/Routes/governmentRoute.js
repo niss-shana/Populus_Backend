@@ -75,4 +75,84 @@ router.delete('/delete-user/:id', async (req, res) => {
 
 
 
+
+
+
+
+router.post('/map', async (req, res) => {
+  try {
+    console.log("ethi")
+    const data = await VerifiedUsers.find(); // Fetch data from the database
+    console.log(data);
+
+    if (!data) {
+      console.log("error");
+      return res.status(401).json({ success: false, error: "No data found" }); // Send error message if data is not found
+    }
+    
+    // Send data to the frontend with a success message
+    res.status(200).json({ 
+      success: true,
+      message: "Data fetched successfully",
+      data: data 
+    });
+  } catch (error) {
+    console.error(error); // Log the error for debugging
+    res.status(500).json({ success: false, error: "Internal Server Error" }); // Send error response
+  }
+});
+
+
+
+
+
+
+router.post('/housedetails', async (req, res) => {
+  try {
+    console.log("labeeee")
+    console.log(req.body)
+    console.log("hi")
+    // Retrieve houseDetails from the request body
+    const { houseDetails } = req.body;
+    console.log("hi")
+
+    // Ensure houseDetails is provided
+    if (!houseDetails) {
+      return res.status(400).json({ error: 'houseDetails is required' });
+    }
+
+    // Query the database for the house details
+    const data = await VerifiedUsers.find({ houseDetails }).select('name dateOfBirth gender houseDetails place locality district mobileNo aadhaarNo');
+
+    // If no data is found, respond accordingly
+    if (data.length === 0) {
+      return res.status(404).json({ error: 'No house details found' });
+    }
+
+    // Send the data as a response
+    res.status(200).json({ data });
+  } catch (error) {
+    // Handle errors
+    console.error('Error fetching house details:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export default router
