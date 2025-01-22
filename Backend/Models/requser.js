@@ -5,8 +5,8 @@ const residentSchema = new mongoose.Schema({
   dateOfBirth: { type: String },
   gender: { type: String },
   houseDetails: { type: String }, 
-  place: { type: String },
-  locality: { type: String },
+  selfGovType: { type: String},
+  localBody: {type: String},
   district: { type: String},
   mobileNo: { type: String }, 
   aadhaarNo: { type: String}, 
@@ -15,7 +15,8 @@ const residentSchema = new mongoose.Schema({
   mappedHouse: { type: String },
   username: {type: String},
   password: {type: String},
-
+  email: {type: String},
+  isOwnerHome: {type:String},
 });
 
 

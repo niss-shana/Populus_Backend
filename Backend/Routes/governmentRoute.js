@@ -1,25 +1,16 @@
 import express  from 'express';
 import RequestUsers from '../models/requser.js';
 import VerifiedUsers from '../models/verUsers.js';
+import LocalGovernment from '../Models/locgov.js';
 const router = express.Router();
 
-router.post('/login', async (req, res) => {
-  try {
-    console.log(req.body)
-   
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
 
-router.post('/signup', async (req, res) => {
-  try {
-    console.log(req.body)
-   
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
+
+
+
+
+
+
 
 router.get('/users', async (req, res) => {
   try {
@@ -33,6 +24,11 @@ router.get('/users', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
+
+
+
+
+
 
 router.post('/verify-user', async (req, res) => {
   try {
@@ -51,6 +47,11 @@ router.post('/verify-user', async (req, res) => {
   }
 });
 
+
+
+
+
+
 router.delete('/delete-user/:id', async (req, res) => {
   try {
     const userId = req.params.id;
@@ -58,6 +59,69 @@ router.delete('/delete-user/:id', async (req, res) => {
     res.status(200).json({ message: 'User deleted successfully.' });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+
+
+
+
+router.post('/login', async (req, res) => {
+  try {
+    console.log(req.body);
+    const { username, password } = req.body;
+    console.log(username);
+    const user = await LocalGovernment.findOne({username: username });
+    console.log(user);
+    if (!user) {
+      console.log("error");
+    return res.status(401).json({ error: 'Authentication failed' });
+    }
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    console.log("Password is match:",passwordMatch);
+    if (!passwordMatch) {
+    return res.status(401).json({ error: 'Authentication failed' });
+    }
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_KEY, {
+    expiresIn: '1h',
+    });
+    console.log("token:",token);
+    res.status(200).json({ success:true,Message:"Login Success",token });
+    } catch (error) {
+    res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+
+
+
+
+
+router.post('/signup', async (req, res) => {
+  try {
+    console.log("local government add");
+    console.log(req.body);
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
+    console.log("Hashing error:", error);
+
+
+    // Create a new resident with the hashed password
+    const reqgovernment = new LocalGovernment({
+      ...req.body,
+      password: hashedPassword, // Replace the plain password with the hashed one
+    });
+
+    await reqgovernment.save();
+
+    console.log(reqgovernment);
+    const demo = await LocalGovernment.find();
+    console.log(demo);
+
+    res.status(201).json({ message: "SignUp details saved successfully" });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 
@@ -122,7 +186,9 @@ router.post('/housedetails', async (req, res) => {
     }
 
     // Query the database for the house details
-    const data = await VerifiedUsers.find({ houseDetails }).select('name dateOfBirth gender houseDetails place locality district mobileNo aadhaarNo');
+    const data = await VerifiedUsers.find({ houseDetails }).select('name dateOfBirth gender houseDetails place locality district mobileNo aadhaarNo rationId');
+    console.log(data)
+    
 
     // If no data is found, respond accordingly
     if (data.length === 0) {
