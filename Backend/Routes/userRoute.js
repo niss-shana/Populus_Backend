@@ -229,7 +229,7 @@ router.post('/profile/photo', authenticateToken, (req, res) => {
 router.post('/map', async (req, res) => {
   try {
     console.log("ethi")
-    const data = await RequestUsers.find(); // Fetch data from the database
+    const data = await VerifiedUsers.find(); // Fetch data from the database
     console.log(data);
 
     if (!data) {
