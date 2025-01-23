@@ -24,7 +24,7 @@ app.get("/", (req, res) => res.send("Hello Nishana"));
 app.use('/user', userRoute);
 app.use('/government', governmentRoute);
 app.use('/department', departmentRoute);
-app.use('/post', postRoute);
+app.use('/posts', postRoute);
 
 
 

@@ -1,4 +1,20 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+
+const commentSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  message: {
+    type: String,
+    required: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
 
 const announcementSchema = new mongoose.Schema({
   department: {
@@ -29,8 +45,7 @@ const announcementSchema = new mongoose.Schema({
       default: 0,
     },
     comments: {
-      type: Number,
-      default: 0,
+      type: [commentSchema], // Change this to an array of commentSchema
     },
   },
   createdAt: {
@@ -40,5 +55,4 @@ const announcementSchema = new mongoose.Schema({
 });
 
 const Announcement = mongoose.model('Announcement', announcementSchema);
-
-module.exports = Announcement;
+export default Announcement;
