@@ -2,6 +2,8 @@ import express  from 'express';
 import RequestUsers from '../models/requser.js';
 import VerifiedUsers from '../models/verUsers.js';
 import LocalGovernment from '../Models/locgov.js';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 const router = express.Router();
 
 
@@ -73,14 +75,21 @@ router.post('/login', async (req, res) => {
     console.log(username);
     const user = await LocalGovernment.findOne({username: username });
     console.log(user);
+    console.log("melathe user");
+
     if (!user) {
       console.log("error");
-    return res.status(401).json({ error: 'Authentication failed' });
+      return res.status(401).json({ error: 'Authentication f' });
     }
     const passwordMatch = await bcrypt.compare(password, user.password);
+    if (user) {
+
+      console.log("User's stored password hash:", user.password); // Log the hashed password
+    }
     console.log("Password is match:",passwordMatch);
     if (!passwordMatch) {
-    return res.status(401).json({ error: 'Authentication failed' });
+      console.log("passw")
+      return res.status(401).json({ error: 'Authentication ' });
     }
     const token = jwt.sign({ userId: user._id }, process.env.JWT_KEY, {
     expiresIn: '1h',
@@ -203,6 +212,8 @@ router.post('/housedetails', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+
 
 
 
