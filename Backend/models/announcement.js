@@ -23,8 +23,8 @@ const announcementSchema = new mongoose.Schema({
     trim: true,
   },
   time: {
-    type: String,
-    required: true,
+    type: Date, // Changed to Date type for better time handling
+    default: Date.now,
   },
   title: {
     type: String,
@@ -45,7 +45,8 @@ const announcementSchema = new mongoose.Schema({
       default: 0,
     },
     comments: {
-      type: [commentSchema], // Change this to an array of commentSchema
+      type: [commentSchema],
+      default: [] // Change this to an array of commentSchema
     },
   },
   createdAt: {

@@ -61,17 +61,82 @@ router.delete('/delete/:id', async (req, res) => {
   }
 });
 
-// Get All Announcements
-router.get('/display', async (req, res) => {
-    try {
-      const announcements = await Announcement.find();
-      console.log('Announcements fetched:', announcements); // Log fetched data
-      return res.status(200).json({ announcements });
-    } catch (err) {
-      console.error('Error fetching announcements:', err);
-      return res.status(500).json({ error: 'Server Error' });
-    }
-  });
-  
 
+
+// Get All Announcements
+
+router.get('/display', async (req, res) => {
+  try {
+    const announcements = await Announcement.find().sort({ createdAt: -1 });
+    res.json({ announcements });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching announcements', error });
+  }
+});
+
+router.post('/:postId/like', async (req, res) => {
+  try {
+    const post = await Announcement.findById(req.params.postId);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    post.reactions.likes += 1;
+    await post.save();
+
+    res.json({ message: 'Post liked', reactions: post.reactions });
+  } catch (error) {
+    res.status(500).json({ message: 'Error liking post', error });
+  }
+});
+
+//  Dislike a Post
+router.post('/:postId/dislike', async (req, res) => {
+  try {
+    const post = await Announcement.findById(req.params.postId);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    post.reactions.dislikes += 1;
+    await post.save();
+
+    res.json({ message: 'Post disliked', reactions: post.reactions });
+  } catch (error) {
+    res.status(500).json({ message: 'Error disliking post', error });
+  }
+});
+
+// ✅ Add a Comment
+router.post('/:postId/comment', async (req, res) => {
+  try {
+    const { username, message } = req.body;
+    const post = await Announcement.findById(req.params.postId);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    const newComment = {
+      username,
+      message,
+      createdAt: new Date(),
+    };
+
+    post.reactions.comments.push(newComment);
+    await post.save();
+
+    res.json({ message: 'Comment added', comment: newComment, reactions: post.reactions });
+  } catch (error) {
+    res.status(500).json({ message: 'Error adding comment', error });
+  }
+});
+
+// ✅ Fetch Latest Comments (Sorted)
+router.get('/:postId/comments', async (req, res) => {
+  try {
+    const post = await Announcement.findById(req.params.postId);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    // Sorting comments in descending order (latest first)
+    const sortedComments = post.reactions.comments.sort((a, b) => b.createdAt - a.createdAt);
+
+    res.json({ comments: sortedComments });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching comments', error });
+  }
+});
 export default router;
