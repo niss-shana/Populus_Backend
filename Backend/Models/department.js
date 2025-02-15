@@ -11,6 +11,7 @@ const depSchema = new mongoose.Schema({
   mobile: { type: String, required: true }, // No validation added
   aadhaar: { type: String, required: true }, // No validation added
   email: { type: String, required: true },
+  department:{type: String, required: true},
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   photo: { type: String }, // File path or URL for the photo
