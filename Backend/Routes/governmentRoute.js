@@ -2,7 +2,39 @@ import express  from 'express';
 import RequestUsers from '../models/requser.js';
 import VerifiedUsers from '../models/verUsers.js';
 import LocalGovernment from '../Models/locgov.js';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+
 const router = express.Router();
+
+
+
+
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: "Access denied. No token provided." });
+  }
+
+  jwt.verify(token, process.env.JWT_KEY, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: "Invalid or expired token." });
+    }
+    req.user = user; // Attach the user payload to the request object
+    next();
+  });
+};
+
+// Apply the middleware globally to all routes except `/login` and `/signup`
+router.use((req, res, next) => {
+  if (req.path === '/login' || req.path === '/signup') {
+    return next(); // Skip authentication for these routes
+  }
+  authenticateToken(req, res, next); // Apply authentication to all other routes
+});
+
 
 
 
@@ -75,12 +107,13 @@ router.post('/login', async (req, res) => {
     console.log(user);
     if (!user) {
       console.log("error");
-    return res.status(401).json({ error: 'Authentication failed' });
+      return res.status(401).json({ error: 'Authentication1 failed' });
     }
     const passwordMatch = await bcrypt.compare(password, user.password);
     console.log("Password is match:",passwordMatch);
     if (!passwordMatch) {
-    return res.status(401).json({ error: 'Authentication failed' });
+      console.log("pas")
+      return res.status(401).json({ error: 'password wrong' });
     }
     const token = jwt.sign({ userId: user._id }, process.env.JWT_KEY, {
     expiresIn: '1h',
@@ -88,6 +121,7 @@ router.post('/login', async (req, res) => {
     console.log("token:",token);
     res.status(200).json({ success:true,Message:"Login Success",token });
     } catch (error) {
+      console.log("Error:", error);
     res.status(500).json({ error: 'Login failed' });
     }
 });
@@ -201,6 +235,29 @@ router.post('/housedetails', async (req, res) => {
     // Handle errors
     console.error('Error fetching house details:', error);
     res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
+
+app.post("/create_survey", authenticateToken, async (req, res) => {
+  try {
+    const { title, question, options } = req.body;
+    const creator = req.user.username; // Extract username from the token
+
+    // Validate input
+    if (!title || !question || !options || options.length < 2 || options.length > 4) {
+      return res.status(400).json({ message: "Invalid survey data." });
+    }
+
+    // Save survey to MongoDB with the creator field
+    const newSurvey = new Survey({ title, question, options, creator });
+    await newSurvey.save();
+
+    res.status(201).json({ message: "Survey created successfully", survey: newSurvey });
+  } catch (error) {
+    console.error("Error saving survey:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 
