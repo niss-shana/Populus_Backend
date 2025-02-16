@@ -7,6 +7,7 @@ const govSchema = new mongoose.Schema({
   house: { type: String, required: true }, // Corrected from 'houseDetails' to 'house'
   place: { type: String, required: true },
   locality: { type: String, required: true },
+  selfGovType:{ type: String, required: true},
   district: { type: String, required: true },
   mobile: { type: String, required: true }, // No validation added
   aadhaar: { type: String, required: true }, // No validation added

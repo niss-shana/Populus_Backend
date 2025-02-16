@@ -17,6 +17,7 @@ const residentSchema = new mongoose.Schema({
   password: {type: String},
   email: {type: String},
   isOwnerHome: {type:String},
+  
 });
 
 

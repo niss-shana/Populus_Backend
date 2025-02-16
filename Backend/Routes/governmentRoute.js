@@ -106,6 +106,8 @@ router.post('/login', async (req, res) => {
 
 
 
+const saltRounds = 10;
+
 router.post('/signup', async (req, res) => {
   try {
     console.log("local government add");
@@ -113,13 +115,11 @@ router.post('/signup', async (req, res) => {
 
     // Hash the password
     const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
-    console.log("Hashing error:", error);
-
 
     // Create a new resident with the hashed password
     const reqgovernment = new LocalGovernment({
       ...req.body,
-      password: hashedPassword, // Replace the plain password with the hashed one
+      password: hashedPassword,
     });
 
     await reqgovernment.save();
@@ -130,6 +130,7 @@ router.post('/signup', async (req, res) => {
 
     res.status(201).json({ message: "SignUp details saved successfully" });
   } catch (error) {
+    console.error("Signup error:", error);  // Better error logging
     res.status(400).json({ error: error.message });
   }
 });
@@ -213,6 +214,46 @@ router.post('/housedetails', async (req, res) => {
   }
 });
 
+
+
+// GET /government/profile/:username
+router.get('/profile/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    // Find user by username
+    const user = await LocalGovernment.findOne({ username });
+    console.log(user)
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Remove sensitive information
+    const userProfile = {
+      _id: user._id,
+      name: user.fullName,
+      username: user.username,
+      email: user.email,
+      mobileNo: user.mobile,
+      district: user.district,
+      selfGovType: user.selfGovType,
+      localBody: user.localBody,
+      photo: user.photo
+    };
+
+    res.json(userProfile);
+  } catch (error) {
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching profile data' 
+    });
+  }
+});
 
 
 
