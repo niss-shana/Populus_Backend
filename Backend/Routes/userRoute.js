@@ -7,6 +7,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
+ 
 const router = express.Router();
 const saltRounds = 10;
 
@@ -93,7 +94,7 @@ router.post('/resident_signup', async (req, res) => {
 router.post('/resident_login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const user = await RequestUsers.findOne({ username });
+    const user = await VerifiedUsers.findOne({ username });
     
     if (!user) {
       return res.status(401).json({ error: 'Authentication failed' });
@@ -127,9 +128,10 @@ router.post('/resident_login', async (req, res) => {
 router.get('/check-username/:username', async (req, res) => {
   console.log("username check")
   const { username } = req.params;
+  console.log(username);
   try {
-    const existingUser = await RequestUsers.findOne({ username });
-    console.
+    const existingUser = await VerifiedUsers.findOne({ username });
+    console.log(existingUser);
     res.json({ available: !existingUser });
   } catch (error) {
     console.error('Error checking username availability:', error);
