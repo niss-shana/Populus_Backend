@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import userRoute from './Routes/userRoute.js';
 import governmentRoute from './Routes/governmentRoute.js'
 import departmentRoute from './Routes/departmentRoute.js'
-import postRoute from './Routes/postRoute.js'
+
 
 dotenv.config();
 
@@ -24,7 +24,7 @@ app.get("/", (req, res) => res.send("Hello Nishana"));
 app.use('/user', userRoute);
 app.use('/government', governmentRoute);
 app.use('/department', departmentRoute);
-app.use('/post', postRoute);
+
 
 
 

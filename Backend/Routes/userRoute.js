@@ -11,31 +11,33 @@ const router = express.Router();
 const saltRounds = 10;
 
 // Authentication middleware
-const authenticateToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-    if (!token) {
-      return res.status(401).json({ message: 'Authentication token required' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_KEY);
-    const user = await RequestUsers.findById(decoded.userId);
-
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-
-    req.userId = decoded.userId;
-    next();
-  } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ message: 'Token expired' });
-    }
-    return res.status(401).json({ message: 'Invalid token' });
+  if (!token) {
+    return res.status(401).json({ message: "Access denied. No token provided." });
   }
+
+  jwt.verify(token, process.env.JWT_KEY, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: "Invalid or expired token." });
+    }
+    console.log("Decoded user payload:", user); // Debugging
+    req.user = user; // Attach the user payload to the request object
+    next();
+  });
 };
+
+// Apply the middleware globally to all routes except `/login` and `/signup`
+router.use((req, res, next) => {
+  if (req.path === '/resident_signup' || req.path === '/resident_login') {
+    return next(); // Skip authentication for these routes
+  }
+  authenticateToken(req, res, next); // Apply authentication to all other routes
+});
+
+
 
 // Configure multer for profile photo upload
 const storage = multer.diskStorage({
@@ -92,21 +94,27 @@ router.post('/resident_signup', async (req, res) => {
 // Login route
 router.post('/resident_login', async (req, res) => {
   try {
+    console.log("ivde ethi")
     const { username, password } = req.body;
     const user = await RequestUsers.findOne({ username });
+    console.log(user)
     
     if (!user) {
-      return res.status(401).json({ error: 'Authentication failed' });
+      console.log("not user")
+      return res.status(401).json({ error: 'Authentication failed1' });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
-      return res.status(401).json({ error: 'Authentication failed' });
+      console.log("passw")
+      return res.status(401).json({ error: 'password is wrong' });
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_KEY, {
-      expiresIn: '24h', // Extended token expiration
-    });
+    const token = jwt.sign(
+          { userId: user._id, username: user.username }, // Payload
+          process.env.JWT_KEY, // Secret key
+          { expiresIn: '365d' } // Expires in 365 days
+        );
 
     res.status(200).json({ 
       success: true,
@@ -119,6 +127,7 @@ router.post('/resident_login', async (req, res) => {
       }
     });
   } catch (error) {
+    console.log("catch")
     res.status(500).json({ error: 'Login failed' });
   }
 });

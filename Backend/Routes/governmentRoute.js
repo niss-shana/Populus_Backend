@@ -2,11 +2,11 @@ import express  from 'express';
 import RequestUsers from '../models/requser.js';
 import VerifiedUsers from '../models/verUsers.js';
 import LocalGovernment from '../Models/locgov.js';
+import Survey from '../Models/Survey.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
-
 
 
 
@@ -22,6 +22,7 @@ const authenticateToken = (req, res, next) => {
     if (err) {
       return res.status(403).json({ message: "Invalid or expired token." });
     }
+    console.log("Decoded user payload:", user); // Debugging
     req.user = user; // Attach the user payload to the request object
     next();
   });
@@ -115,9 +116,11 @@ router.post('/login', async (req, res) => {
       console.log("pas")
       return res.status(401).json({ error: 'password wrong' });
     }
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_KEY, {
-    expiresIn: '1h',
-    });
+    const token = jwt.sign(
+      { userId: user._id, username: user.username }, // Payload
+      process.env.JWT_KEY, // Secret key
+      { expiresIn: '365d' } // Expires in 365 days
+    );
     console.log("token:",token);
     res.status(200).json({ success:true,Message:"Login Success",token });
     } catch (error) {
@@ -177,7 +180,7 @@ router.post('/signup', async (req, res) => {
 
 
 
-router.post('/map', async (req, res) => {
+router.post('/map',authenticateToken, async (req, res) => {
   try {
     console.log("ethi")
     const data = await VerifiedUsers.find(); // Fetch data from the database
@@ -240,28 +243,44 @@ router.post('/housedetails', async (req, res) => {
 
 
 
-app.post("/create_survey", authenticateToken, async (req, res) => {
+router.post("/create_survey", authenticateToken, async (req, res) => {
   try {
     const { title, question, options } = req.body;
-    const creator = req.user.username; // Extract username from the token
+   
+    const creator = req.user.username;
+    console.log(req.user.username)
+    const profile="local_government" // Extract username from the token
 
     // Validate input
     if (!title || !question || !options || options.length < 2 || options.length > 4) {
-      return res.status(400).json({ message: "Invalid survey data." });
+      return res.status(400).json({ message: "Invalid survey data. Ensure title, question, and 2-4 options are provided." });
     }
 
-    // Save survey to MongoDB with the creator field
-    const newSurvey = new Survey({ title, question, options, creator });
+    // Create a new survey document
+    const newSurvey = new Survey({ 
+      title, 
+      question, 
+      options, 
+      creator,
+      profile 
+    });
+
+    // Save the survey to the database
     await newSurvey.save();
 
-    res.status(201).json({ message: "Survey created successfully", survey: newSurvey });
+    // Respond with success message and the created survey
+    res.status(201).json({ 
+      message: "Survey created successfully", 
+      survey: newSurvey 
+    });
   } catch (error) {
     console.error("Error saving survey:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ 
+      message: "Internal server error", 
+      error: error.message 
+    });
   }
 });
-
-
 
 
 
