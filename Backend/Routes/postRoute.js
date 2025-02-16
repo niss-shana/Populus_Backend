@@ -1,33 +1,113 @@
 import express from 'express';
 import Announcement from '../models/announcement.js';
 
+
 const router = express.Router();
+
+
+// Backend: routes/announcement.ts
+
+router.post('/:postId/reaction', async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { userId, type } = req.body; // type will be either 'like' or 'dislike'
+
+    const post = await Announcement.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    // Find if user has already reacted
+    const existingReaction = post.reactions.userReactions.find(
+      reaction => reaction.userId === userId
+    );
+
+    // If user already reacted with the same type, remove the reaction
+    if (existingReaction && existingReaction.reaction === type) {
+      post.reactions.userReactions = post.reactions.userReactions.filter(
+        reaction => reaction.userId !== userId
+      );
+      if (type === 'like') {
+        post.reactions.likes--;
+      } else {
+        post.reactions.dislikes--;
+      }
+    }
+    // If user already reacted with different type, update the reaction
+    else if (existingReaction) {
+      existingReaction.reaction = type;
+      if (type === 'like') {
+        post.reactions.likes++;
+        post.reactions.dislikes--;
+      } else {
+        post.reactions.dislikes++;
+        post.reactions.likes--;
+      }
+    }
+    // If no existing reaction, add new reaction
+    else {
+      post.reactions.userReactions.push({ userId, reaction: type });
+      if (type === 'like') {
+        post.reactions.likes++;
+      } else {
+        post.reactions.dislikes++;
+      }
+    }
+
+    await post.save();
+
+    res.json({
+      reactions: {
+        likes: post.reactions.likes,
+        dislikes: post.reactions.dislikes
+      },
+      userReaction: type
+    });
+  } catch (error) {
+    console.error('Handle reaction error:', error);
+    res.status(500).json({ message: 'Error handling reaction' });
+  }
+});
+
 
 // Create Announcement
 router.post('/create', async (req, res) => {
   try {
-    const { department, time, title, message } = req.body;
+    console.log("create");
+    console.log("Received data:", req.body);
+    console.log("Received file:", req.file);
+    const { department, title, message,time } = req.body;
 
     // Validate required fields
-    if (!department || !time || !title || !message) {
+    if (!department || !title || !message) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
     // Validate time format
-    if (isNaN(Date.parse(time))) {
-      return res.status(400).json({ error: 'Invalid time format' });
+    let parsedTime = Date.now();
+    if (time) {
+      if (isNaN(Date.parse(time))) {
+        return res.status(400).json({ error: 'Invalid time format' });
+      }
+      parsedTime = new Date(time);
     }
-
     // Create a new announcement
     const newAnnouncement = new Announcement({
       department,
-      time,
       title,
       message,
+      imageUri: req.file ? req.file.path : null,
+      reactions: {
+        likes: 0,
+        dislikes: 0,
+        comments: []
+      },
+      time: parsedTime,
+      createdAt: new Date()
     });
-
     // Save the new announcement to the database
     await newAnnouncement.save();
+    console.log("Saving announcement:", newAnnouncement);
 
     return res.status(201).json({
       message: 'Announcement created successfully!',
@@ -66,6 +146,7 @@ router.delete('/delete/:id', async (req, res) => {
 // Get All Announcements
 
 router.get('/display', async (req, res) => {
+ 
   try {
     const announcements = await Announcement.find().sort({ createdAt: -1 });
     res.json({ announcements });

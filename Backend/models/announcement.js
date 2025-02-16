@@ -16,6 +16,18 @@ const commentSchema = new mongoose.Schema({
   },
 });
 
+const userReactionSchema = new mongoose.Schema({
+  userId: {
+    type: String,
+    required: true
+  },
+  reaction: {
+    type: String,
+    enum: ['like', 'dislike'],
+    required: true
+  }
+});
+
 const announcementSchema = new mongoose.Schema({
   department: {
     type: String,
@@ -35,6 +47,10 @@ const announcementSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  imageUri: {
+    type: String,
+    required: false,
+  },
   reactions: {
     likes: {
       type: Number,
@@ -48,7 +64,13 @@ const announcementSchema = new mongoose.Schema({
       type: [commentSchema],
       default: [] // Change this to an array of commentSchema
     },
+    userReactions: {
+      type: [userReactionSchema],
+      default: []
+    }
+  
   },
+  
   createdAt: {
     type: Date,
     default: Date.now,

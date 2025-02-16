@@ -125,9 +125,11 @@ router.post('/resident_login', async (req, res) => {
 
 // Username availability check
 router.get('/check-username/:username', async (req, res) => {
+  console.log("username check")
   const { username } = req.params;
   try {
     const existingUser = await RequestUsers.findOne({ username });
+    console.
     res.json({ available: !existingUser });
   } catch (error) {
     console.error('Error checking username availability:', error);
