@@ -76,7 +76,7 @@ router.post('/create', async (req, res) => {
     console.log("create");
     console.log("Received data:", req.body);
     console.log("Received file:", req.file);
-    const { department, title, message,time } = req.body;
+    const { department, title, message,time,imageUri } = req.body;
 
     // Validate required fields
     if (!department || !title || !message) {
@@ -96,7 +96,7 @@ router.post('/create', async (req, res) => {
       department,
       title,
       message,
-      imageUri: req.file ? req.file.path : null,
+      imageUri,
       reactions: {
         likes: 0,
         dislikes: 0,
@@ -120,19 +120,19 @@ router.post('/create', async (req, res) => {
 });
 
 // Delete Announcement
-router.delete('/delete/:id', async (req, res) => {
+router.delete('/delete/:postId', async (req, res) => {
   try {
-    const { id } = req.params;
-
+    const {postId } = req.params;
+    console.log("delete post");
     // Find and delete the announcement by its ID
-    const deletedAnnouncement = await Announcement.findByIdAndDelete(id);
+    const deletedAnnouncement = await Announcement.findByIdAndDelete(postId);
 
     if (!deletedAnnouncement) {
       return res.status(404).json({ error: 'Announcement not found' });
     }
 
     return res.status(200).json({
-      message: 'Announcement deleted successfully!',
+      message: 'Post deleted successfully!',
       deletedAnnouncement,
     });
   } catch (err) {
