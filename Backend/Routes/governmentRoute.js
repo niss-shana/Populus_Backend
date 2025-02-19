@@ -284,6 +284,81 @@ router.post("/create_survey", authenticateToken, async (req, res) => {
 
 
 
+router.post("/mysurvey", authenticateToken, async (req, res) => {
+  try {
+    console.log("Fetching presidentId for user");
+    const userId = req.user.username;
+    const surveys = await Survey.find({ creator: userId });
+    console.log(surveys)
+
+    if (!surveys || surveys.length === 0) {
+      console.log("No surveys found for the president");
+      return res.status(200).json({ 
+        success: true,
+        message: "No surveys found",
+        surveys: [] // Return an empty array if no surveys are found
+      });
+    }
+
+    // Send the surveys to the frontend with a success message
+    res.status(200).json({ 
+      success: true,
+      message: "Data fetched successfully",
+      surveys
+    });
+  } catch (error) {
+    console.error("Error:", error); // Log the error for debugging
+    res.status(500).json({ success: false, error: "Internal Server Error" }); // Send error response
+  }
+});
+
+
+
+
+router.post("/completesurvey", authenticateToken, async (req, res) => {
+  try {
+    const { surveyId } = req.body; // Using camelCase for consistency
+
+    // Validate input
+    if (!surveyId) {
+      return res.status(400).json({ message: "Survey ID is required" });
+    }
+
+    // Update the survey and get the result
+    const result = await Survey.updateOne(
+      { _id: surveyId },
+      { $set: { active: false } }
+    );
+
+    // Check if any document was modified
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: "Survey not found" });
+    }
+
+    res.status(200).json({ 
+      success: true,
+      message: "Survey marked as completed successfully"
+    });
+
+  } catch (error) {
+    console.error("Error completing survey:", error);
+    
+    // Handle specific errors
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: "Invalid Survey ID format" });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error",
+      error: error.message 
+    });
+  }
+});
+
+
+
+
 
 
 

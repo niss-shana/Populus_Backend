@@ -6,6 +6,9 @@ import bcrypt from 'bcrypt';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import Survey from '../Models/Survey.js';
+import Result from '../Models/Result.js';
+
 
  
 const router = express.Router();
@@ -95,6 +98,7 @@ router.post('/resident_login', async (req, res) => {
   try {
     const { username, password } = req.body;
     const user = await VerifiedUsers.findOne({ username });
+    console.log(user)
     
     if (!user) {
       return res.status(401).json({ error: 'Authentication failed' });
@@ -105,9 +109,11 @@ router.post('/resident_login', async (req, res) => {
       return res.status(401).json({ error: 'Incorrect Password' });
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_KEY, {
-      expiresIn: '24h', // Extended token expiration
-    });
+     const token = jwt.sign(
+          { userId: user._id, username: user.username }, // Payload
+          process.env.JWT_KEY, // Secret key
+          { expiresIn: '365d' } // Expires in 365 days
+        );
 
     res.status(200).json({ 
       success: true,
@@ -230,7 +236,7 @@ router.post('/profile/photo', authenticateToken, (req, res) => {
     }
   });
 });
-router.post('/map', async (req, res) => {
+router.post('/map', authenticateToken, async (req, res) => {
   try {
     console.log("ethi")
     const data = await VerifiedUsers.find(); // Fetch data from the database
@@ -254,6 +260,84 @@ router.post('/map', async (req, res) => {
 });
 
 
+
+
+
+
+router.post('/poling', authenticateToken, async (req, res) => {
+  try {
+    console.log("Fetching presidentId for user");
+
+    // Extract the username from the authenticated user
+    const userId = req.user.username;
+    console.log("User ID:", userId);
+
+    // Find the user in the VerifiedUsers collection
+    const user = await VerifiedUsers.findOne({ username: userId });
+
+    if (!user) {
+      console.log("User not found");
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Extract the presidentId from the user document
+    const presidentId = user.presidentId;
+    console.log("PresidentId:", presidentId);
+
+    // Fetch surveys created by the presidentId and are active
+    const surveys = await Survey.find({ creator: presidentId, active: true });
+    console.log(surveys)
+
+    if (!surveys || surveys.length === 0) {
+      console.log("No surveys found for the president");
+      return res.status(200).json({ 
+        success: true,
+        message: "No surveys found",
+        surveys: [] // Return an empty array if no surveys are found
+      });
+    }
+
+    // Send the surveys to the frontend with a success message
+    res.status(200).json({ 
+      success: true,
+      message: "Data fetched successfully",
+      surveys
+    });
+  } catch (error) {
+    console.error("Error:", error); // Log the error for debugging
+    res.status(500).json({ success: false, error: "Internal Server Error" }); // Send error response
+  }
+});
+
+
+
+
+
+
+
+router.post('/submit-survey', authenticateToken, async (req, res) => {
+  try {
+    const username = req.user.username;
+    const { surveyId, selectedOption } = req.body;
+    console.log(req.body)
+    console.log(username)
+    const surveyResult = new Result({
+      surveyid:surveyId,
+      option:selectedOption,
+      user:username
+
+    
+    });
+    await surveyResult.save();
+
+    
+
+    res.status(200).json({ success: true, message: 'Response submitted successfully' });
+  } catch (error) {
+    console.error('Error submitting survey:', error);
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
+});
 
 
 
