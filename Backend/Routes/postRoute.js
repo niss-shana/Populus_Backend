@@ -5,7 +5,7 @@ import Announcement from '../models/announcement.js';
 const router = express.Router();
 
 
-// Backend: routes/announcement.ts
+// Backend: government
 
 router.post('/:postId/reaction', async (req, res) => {
   try {
@@ -76,10 +76,10 @@ router.post('/create', async (req, res) => {
     console.log("create");
     console.log("Received data:", req.body);
     console.log("Received file:", req.file);
-    const { department, title, message,time,imageUri } = req.body;
+    const { department, title, message,time,imageUri,access } = req.body;
 
     // Validate required fields
-    if (!department || !title || !message) {
+    if (!department || !title || !message || !access) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
@@ -103,6 +103,7 @@ router.post('/create', async (req, res) => {
         comments: []
       },
       time: parsedTime,
+      access,
       createdAt: new Date()
     });
     // Save the new announcement to the database
@@ -185,9 +186,17 @@ router.post('/:postId/dislike', async (req, res) => {
 });
 
 // ✅ Add a Comment
-router.post('/:postId/comment', async (req, res) => {
+router.post('/:postId/comments', async (req, res) => {
+  console.log("add comment");
   try {
     const { username, message } = req.body;
+
+    // Input validation
+    if (!username || !message) {
+      return res.status(400).json({ 
+        message: 'Username and message are required' 
+      });
+    }
     const post = await Announcement.findById(req.params.postId);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
@@ -212,12 +221,17 @@ router.get('/:postId/comments', async (req, res) => {
     const post = await Announcement.findById(req.params.postId);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
-    // Sorting comments in descending order (latest first)
-    const sortedComments = post.reactions.comments.sort((a, b) => b.createdAt - a.createdAt);
-
+    
+    
+    // Sort comments by createdAt in descending order (latest first)
+    const sortedComments = post.reactions.comments.sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    );
     res.json({ comments: sortedComments });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching comments', error });
   }
 });
+
+
 export default router;

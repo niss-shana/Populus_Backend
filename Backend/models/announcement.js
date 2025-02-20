@@ -70,7 +70,10 @@ const announcementSchema = new mongoose.Schema({
     }
   
   },
-  
+  access: {
+    type: [String], 
+    default: []
+  },
   createdAt: {
     type: Date,
     default: Date.now,
