@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const residentSchema = new mongoose.Schema({
   name: { type: String, required: true },
   dateOfBirth: { type: String, required: true },
+  email: {type: String},
   gender: { type: String, required: true },
   houseDetails: { type: String, required: true }, 
   place: { type: String },
@@ -12,6 +13,8 @@ const residentSchema = new mongoose.Schema({
   aadhaarNo: { type: String, required: true }, 
   rationId: { type: String, required: true },
   photo: { type: String },
+  income: { type: String},
+  wardNumber: { type: String },
   mappedHouse: { type: String },
   username: {type: String, required: true},
   password: {type: String, required: true},
