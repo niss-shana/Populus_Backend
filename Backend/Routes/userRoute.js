@@ -34,8 +34,8 @@ const authenticateToken = (req, res, next) => {
 const transporter = nodemailer.createTransport({
   service: 'gmail', // or your preferred service
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_APP_PASSWORD,
+    user: 'populus.initiative@gmail.com',
+    pass: 'vinw nsoq fykj hovv',
   },
 });
 
@@ -214,7 +214,7 @@ router.post('/forgot-password', async (req, res) => {
     // Send OTP
     console.log("Sending OTP via email...");
     console.log("Email User:", process.env.EMAIL_USER); // Debugging
-    console.log("Email Password:", process.env.EMAIL_PASSWORD ? "***" : "Not set"); // Debugging
+    console.log("Email Password:", process.env.EMAIL_APP_PASSWORD ? "***" : "Not set"); // Debugging
     await sendEmailOTP(email, otp);
 
     console.log("OTP sent successfully");
@@ -267,8 +267,9 @@ router.post('/resend-otp', async (req, res) => {
 // Verify OTP route
 router.post('/verify-otp', async (req, res) => {
   try {
-    const { email, otp } = req.body;
     
+    const { email, otp } = req.body;
+    console.log("verify otp",otp);
     // Validate request
     if (!email) {
       return res.status(400).json({ message: 'Email is required' });
@@ -280,6 +281,7 @@ router.post('/verify-otp', async (req, res) => {
 
     // Check if OTP exists
     const otpData = otpStore.get(email);
+    console.log(otpData);
     if (!otpData) {
       return res.status(400).json({ message: 'No verification code found or it has expired. Please request a new one.' });
     }
@@ -329,7 +331,7 @@ router.post('/verify-otp', async (req, res) => {
 router.post('/reset-password', async (req, res) => {
   try {
     const { resetToken, newPassword } = req.body;
-    
+    console.log(resetToken);
     if (!resetToken || !newPassword) {
       return res.status(400).json({ message: 'Reset token and new password are required' });
     }
