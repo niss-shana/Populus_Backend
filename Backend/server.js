@@ -7,6 +7,8 @@ import userRoute from './Routes/userRoute.js';
 import governmentRoute from './Routes/governmentRoute.js'
 import departmentRoute from './Routes/departmentRoute.js'
 import postRoute from './Routes/postRoute.js'
+import analyticsRoute from './Routes/analyticsRoute.js'
+
  
 dotenv.config();
 
@@ -25,6 +27,7 @@ app.use('/user', userRoute);
 app.use('/government', governmentRoute);
 app.use('/department', departmentRoute);
 app.use('/posts', postRoute);
+app.use('/analytics', analyticsRoute);
 
 
 
