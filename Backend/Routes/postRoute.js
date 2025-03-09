@@ -24,7 +24,8 @@ router.post('/:postId/reaction', async (req, res) => {
 
     // If user already reacted with the same type, remove the reaction
     if (existingReaction && existingReaction.reaction === type) {
-      post.reactions.userReactions = post.reactions.userReactions.filter(
+      post.reactions.userReactions = post.reactions.userReactions.
+      filter(
         reaction => reaction.userId !== userId
       );
       if (type === 'like') {
@@ -38,6 +39,7 @@ router.post('/:postId/reaction', async (req, res) => {
       existingReaction.reaction = type;
       if (type === 'like') {
         post.reactions.likes++;
+        console.log(post.reactions.likes);
         post.reactions.dislikes--;
       } else {
         post.reactions.dislikes++;
@@ -56,12 +58,15 @@ router.post('/:postId/reaction', async (req, res) => {
 
     await post.save();
 
+       // Get updated user reaction state
+       const userReaction = post.reactions.userReactions.find(r => r.userId === userId)?.reaction || null;
+
     res.json({
       reactions: {
         likes: post.reactions.likes,
         dislikes: post.reactions.dislikes
       },
-      userReaction: type
+      userReaction
     });
   } catch (error) {
     console.error('Handle reaction error:', error);
@@ -198,6 +203,7 @@ router.post('/:postId/comments', async (req, res) => {
       });
     }
     const post = await Announcement.findById(req.params.postId);
+    console.log(post.reactions.comments);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
     const newComment = {
@@ -235,3 +241,4 @@ router.get('/:postId/comments', async (req, res) => {
 
 
 export default router;
+    
