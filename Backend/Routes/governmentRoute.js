@@ -5,6 +5,7 @@ import LocalGovernment from '../Models/locgov.js';
 import Survey from '../Models/Survey.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
 
 const router = express.Router();
 
