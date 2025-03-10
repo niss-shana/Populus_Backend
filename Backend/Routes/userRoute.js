@@ -52,7 +52,8 @@ router.use((req, res, next) => {
     req.path === '/forgot-password' ||
     req.path === '/verify-otp' ||
     req.path === '/resend-otp' ||
-    req.path === '/reset-password'
+    req.path === '/reset-password'||
+    req.path.match(/^\/check-username\/[^\/]+$/)  
   ) {
     return next(); // Skip authentication for these routes
   }
@@ -166,17 +167,7 @@ const sendEmailOTP = async (email, otp) => {
     throw error; // Re-throw the error to be caught in the route handler
   }
 };
-// // Send OTP via SMS
-// const sendSmsOTP = async (phoneNumber, otp) => {
-//   return twilioClient.messages.create({
-//     body: `Your password reset verification code is: ${otp}. This code will expire in 5 minutes.`,
-//     from: process.env.TWILIO_PHONE_NUMBER,
-//     to: `+${phoneNumber}`, // Assuming the phone number is stored without the country code
-//   });
-// };
 
-
-// Forgot password route - request reset
 router.post('/forgot-password', async (req, res) => {
   try {
     console.log("forgot password");

@@ -5,6 +5,7 @@ import LocalGovernment from '../Models/locgov.js';
 import Survey from '../Models/Survey.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
 
 const router = express.Router();
 
@@ -58,7 +59,45 @@ router.get('/users', async (req, res) => {
   }
 });
 
+// Configure email transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail', // or your preferred service
+  auth: {
+    user: 'populus.initiative@gmail.com',
+    pass: 'vinw nsoq fykj hovv',
+  },
+});
 
+ 
+
+
+router.post('/adding_residents', async (req, res) => {
+  try {
+    const { _id, ...userDetails } = req.body; // Extract user details
+    userDetails.presidentId = req.body.presidentId || 'unknown'; // Add presidentId
+
+    // Save to verified users collection
+    const verifiedUser = new VerifiedUsers(userDetails);
+    await verifiedUser.save();
+
+
+
+    // Send email with username and password
+    const mailOptions = {
+      from: process.env.EMAIL_USER, // Sender email
+      to: userDetails.email, // Recipient email
+      subject: 'Your Account Has Been Verified', // Email subject
+      text: `Dear ${userDetails.name},\n\nYour account has been verified. Here are your login credentials:\n\nUsername: ${userDetails.username}\nPassword: ${userDetails.password}\n\nPlease keep this information secure.\n\nBest regards,\nYour Organization`, // Email body
+    };
+
+    // Send the email
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: 'User verified successfully and email sent.' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 
 
