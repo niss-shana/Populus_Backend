@@ -30,7 +30,7 @@ const authenticateToken = (req, res, next) => {
 
 // Apply the middleware globally to all routes except `/login` and `/signup`
 router.use((req, res, next) => {
-  if (req.path === '/login' || req.path === '/signup') {
+  if (req.path === '/login' || req.path === '/signup'|| '/verify-user' ||'/map'||'/housedetails' ) {
     return next(); // Skip authentication for these routes
   }
   authenticateToken(req, res, next); // Apply authentication to all other routes
@@ -208,7 +208,7 @@ router.post('/map',authenticateToken, async (req, res) => {
 
 
 
-router.post('/housedetails', async (req, res) => {
+router.post('/housedetails',authenticateToken, async (req, res) => {
   try {
     console.log("labeeee")
     console.log(req.body)
