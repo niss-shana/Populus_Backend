@@ -20,7 +20,7 @@ const residentSchema = new mongoose.Schema({
   password: {type: String, required: true},
   presidentId: {  type: String},
   isOwnerHome: {type: String}, 
-  
+  occupation:{type:String},  
 });
 
 
