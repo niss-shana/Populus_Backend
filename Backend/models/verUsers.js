@@ -5,12 +5,12 @@ const residentSchema = new mongoose.Schema({
   dateOfBirth: { type: String, required: true },
   email: {type: String},
   gender: { type: String, required: true },
-  houseDetails: { type: String, required: true }, 
+  houseDetails: { type: String, required: true },
   place: { type: String },
   locality: { type: String },
   district: { type: String, required: true },
-  mobileNo: { type: String, required: true }, 
-  aadhaarNo: { type: String, required: true }, 
+  mobileNo: { type: String, required: true },
+  aadhaarNo: { type: String, required: true },
   rationId: { type: String, required: true },
   photo: { type: String },
   income: { type: String},
@@ -23,6 +23,7 @@ const residentSchema = new mongoose.Schema({
   occupation:{type:String},  
 });
 
+// Check if the model already exists
+const VerifiedUsers = mongoose.models.VerifiedUsers || mongoose.model('VerifiedUsers', residentSchema);
 
-const VerifiedUsers = mongoose.model('VerifiedUsers', residentSchema);
 export default VerifiedUsers;
