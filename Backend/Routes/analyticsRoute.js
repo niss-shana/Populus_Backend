@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import VerifiedUsers from '../Models/verUsers.js';
+import axios from 'axios';
 function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
   if (typeof radius === 'number') {
     radius = { tl: radius, tr: radius, br: radius, bl: radius };
@@ -60,6 +61,24 @@ router.use((req, res, next) => {
 
 
 
+function calculateAge(dateOfBirth) {
+  const birthDate = new Date(dateOfBirth);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDifference = today.getMonth() - birthDate.getMonth();
+
+  if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  return age;
+}
+
+
+
+
+
+
 
 
 router.post("/result", authenticateToken, async (req, res) => {
@@ -70,11 +89,51 @@ router.post("/result", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Survey ID is required" });
     }
 
+    // Fetch dataset from the database
     const dataset = await Result.find({ surveyid: surveyId });
 
     if (dataset.length === 0) {
       return res.status(404).json({ error: "No results found for this survey" });
     }
+    const usernames = dataset.map(result => result.user);
+
+    // Get corresponding verified users' details
+    const verifiedUsers = await VerifiedUsers.find({
+      username: { $in: usernames },
+    });
+
+    // Create username-to-details mapping
+    const userDetailsMap = {};
+    verifiedUsers.forEach(user => {
+      // Convert dateOfBirth to age
+      const age = user.dateOfBirth ? calculateAge(user.dateOfBirth) : null;
+
+      userDetailsMap[user.username] = {
+        gender: user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1).toLowerCase() : 'unknown',
+        age: age,
+        houseDetails: user.houseDetails || 'unknown',
+        wardNumber: user.wardNumber || 'unknown',
+        income: user.income || 'unknown',
+        occupation: user.occupation || 'unknown',
+        rationcardType: user.rationcardType || 'unknown',
+      };
+    });
+
+    // Embed user details into the dataset
+    const datasetWithUserDetails = dataset.map(result => ({
+      ...result.toObject(),
+      userDetails: userDetailsMap[result.user] || {
+        gender: 'unknown',
+        age: null,
+        houseDetails: 'unknown',
+        wardNumber: 'unknown',
+        income: 'unknown',
+        occupation: 'unknown',
+        rationcardType: 'unknown',
+      },
+    }));
+    console.log(datasetWithUserDetails);
+
 
     // Group and process data
     const optionCounts = dataset.reduce((acc, item) => {
@@ -92,7 +151,7 @@ router.post("/result", authenticateToken, async (req, res) => {
     // Enhanced histogram generation
     const canvas = createCanvas(1000, 600);
     const ctx = canvas.getContext("2d");
-    
+
     // Background
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -111,7 +170,7 @@ router.post("/result", authenticateToken, async (req, res) => {
     ctx.fillText("Histogram", canvas.width / 2, margin.top / 2);
 
     // Y-axis
-    const maxCount = Math.max(...optionsData.map(d => d.count));
+    const maxCount = Math.max(...optionsData.map((d) => d.count));
     const yScale = chartHeight / maxCount;
 
     ctx.beginPath();
@@ -126,7 +185,7 @@ router.post("/result", authenticateToken, async (req, res) => {
     for (let i = 0; i <= yTickCount; i++) {
       const y = margin.top + (chartHeight * i) / yTickCount;
       const value = Math.round(maxCount - (maxCount * i) / yTickCount);
-      
+
       // Grid lines
       ctx.beginPath();
       ctx.strokeStyle = "#e2e8f0";
@@ -152,21 +211,21 @@ router.post("/result", authenticateToken, async (req, res) => {
     optionsData.forEach((option, index) => {
       const x = margin.left + (chartWidth / optionsData.length) * index + barPadding * barWidth;
       const barHeight = option.count * yScale;
-      
+
       // Create gradient
       const gradient = ctx.createLinearGradient(0, canvas.height - margin.bottom - barHeight, 0, canvas.height - margin.bottom);
       gradient.addColorStop(0, "#3b82f6");
       gradient.addColorStop(1, "#60a5fa");
-      
+
       // Bar with shadow
       ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
       ctx.shadowBlur = 10;
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
-      
+
       ctx.fillStyle = gradient;
       ctx.fillRect(x, canvas.height - margin.bottom - barHeight, barWidth, barHeight);
-      
+
       // Reset shadow
       ctx.shadowColor = "transparent";
 
@@ -177,12 +236,12 @@ router.post("/result", authenticateToken, async (req, res) => {
       ctx.textAlign = "left";
       ctx.translate(x + barWidth / 2, canvas.height - margin.bottom + 20);
       ctx.rotate(Math.PI / 4);
-      
+
       // Create a background rectangle for better readability
       const textMetrics = ctx.measureText(option._id);
       ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
       ctx.fillRect(-5, -15, textMetrics.width + 10, 20);
-      
+
       // Draw the text
       ctx.fillStyle = "#1f2937";
       ctx.fillText(option._id, 0, 0);
@@ -192,22 +251,17 @@ router.post("/result", authenticateToken, async (req, res) => {
       ctx.font = "bold 14px Arial";
       ctx.fillStyle = "#1f2937";
       ctx.textAlign = "center";
-      
+
       // Draw count with background
       const countText = `Count: ${option.count}`;
       const countMetrics = ctx.measureText(countText);
       const labelX = x + barWidth / 2;
       const labelY = canvas.height - margin.bottom - barHeight - 25;
-      
+
       // Background for count label
       ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-      ctx.fillRect(
-        labelX - countMetrics.width / 2 - 5,
-        labelY - 15,
-        countMetrics.width + 10,
-        20
-      );
-      
+      ctx.fillRect(labelX - countMetrics.width / 2 - 5, labelY - 15, countMetrics.width + 10, 20);
+
       // Draw count text
       ctx.fillStyle = "#1f2937";
       ctx.fillText(countText, labelX, labelY);
@@ -226,19 +280,79 @@ router.post("/result", authenticateToken, async (req, res) => {
     // Convert canvas to Base64 image
     const imageUrl = canvas.toDataURL("image/png");
 
-    res.json({
-      results: optionsData.map((d) => ({ 
-        question: d._id, 
-        answers: [d.count.toString()] 
-      })),
-      image: imageUrl,
-    });
+    // Prepare dataset for Google AI Studio (Gemini) API
+    const datasetForAnalysis = optionsData.map((d) => ({
+      question: d._id,
+      count: d.count,
+    }));
+    console.log(datasetForAnalysis)
 
+    try {
+      
+    
+      const prompt = `analyse the dataset in 3 sentance(only main patters) Here's the data: ${JSON.stringify(datasetWithUserDetails, null, 2)}`;
+    
+      const geminiResponse = await axios.post(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyBUeGDjib_NMhQYe9cr22Z5hpCgVps4l7A",
+        {
+          contents: [
+            {
+              parts: [{ text: prompt }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 2048
+          }
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    
+      // Extract insights from the response
+      let insights = "No insights available.";
+      if (geminiResponse.data &&
+        geminiResponse.data.candidates &&
+        geminiResponse.data.candidates.length > 0 &&
+        geminiResponse.data.candidates[0].content &&
+        geminiResponse.data.candidates[0].content.parts &&
+        geminiResponse.data.candidates[0].content.parts.length > 0) {
+    
+        insights = geminiResponse.data.candidates[0].content.parts[0].text;
+      }
+      console.log(insights);
+    
+      // Return response with histogram, dataset, and insights
+      res.json({
+        results: optionsData.map((d) => ({
+          question: d._id,
+          answers: [d.count.toString()],
+        })),
+        image: imageUrl,
+        insights: insights,
+      });
+    } catch (aiError) {
+      console.error("Error fetching AI insights:", aiError);
+      // Fallback: Return the data and image without AI insights
+      res.json({
+        results: optionsData.map((d) => ({
+          question: d._id,
+          answers: [d.count.toString()],
+        })),
+        image: imageUrl,
+        insights: "AI insights are currently unavailable.",
+      });
+    
+    }
   } catch (error) {
-    console.error("Error generating histogram:", error);
-    res.status(500).json({ error: "Failed to generate histogram" });
+    console.error("Error generating histogram or fetching insights:", error);
+    res.status(500).json({ error: "Failed to generate histogram or fetch insights" });
   }
 });
+
 
 
 
