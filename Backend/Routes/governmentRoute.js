@@ -38,14 +38,6 @@ router.use((req, res, next) => {
 });
 
 
-
-
-
-
-
-
-
-
 router.get('/users', async (req, res) => {
   try {
     const users = await RequestUsers.find();
@@ -177,26 +169,27 @@ router.post('/signup', async (req, res) => {
   try {
     console.log("local government add");
     console.log(req.body);
-
+    
+    const saltRounds = 10;
+    
     // Hash the password
     const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
-    console.log("Hashing error:", error);
-
-
+    
     // Create a new resident with the hashed password
     const reqgovernment = new LocalGovernment({
       ...req.body,
-      password: hashedPassword, // Replace the plain password with the hashed one
+      password: hashedPassword // Replace the plain password with the hashed one
     });
-
+    
     await reqgovernment.save();
-
+    
     console.log(reqgovernment);
     const demo = await LocalGovernment.find();
     console.log(demo);
-
+    
     res.status(201).json({ message: "SignUp details saved successfully" });
   } catch (error) {
+    console.log("Error during signup:", error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -218,8 +211,7 @@ router.post('/signup', async (req, res) => {
 
 
 
-
-router.post('/map',authenticateToken, async (req, res) => {
+router.post('/map', async (req, res) => {
   try {
     console.log("ethi")
     const data = await VerifiedUsers.find(); // Fetch data from the database
@@ -403,7 +395,44 @@ router.post("/completesurvey", authenticateToken, async (req, res) => {
 
 
 
+// GET /government/profile/:username
+router.get('/profile/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
 
+    // Find user by username
+    const user = await LocalGovernment.findOne({ username });
+    console.log(user)
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Remove sensitive information
+    const userProfile = {
+      _id: user._id,
+      name: user.fullName,
+      username: user.username,
+      email: user.email,
+      mobileNo: user.mobile,
+      district: user.district,
+      selfGovType: user.selfGovType,
+      localBody: user.localBody,
+      photo: user.photo
+    };
+
+    res.json(userProfile);
+  } catch (error) {
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching profile data' 
+    });
+  }
+});
 
 
 

@@ -16,11 +16,11 @@ const residentSchema = new mongoose.Schema({
   rationId: { type: String},
   photo: { type: String },
   mappedHouse: { type: String },
-  username: {type: String},
-  password: {type: String},
-  email: {type: String},
-  isOwnerHome: {type:String},
-  occupation:{type:String},
+  username: {type: String, required: true},
+  password: {type: String, required: true},
+  presidentId: {  type: String},
+  isOwnerHome: {type: String}, 
+  occupation:{type:String}, 
   rationcardType:{type:String}, 
 });
 
