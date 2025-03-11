@@ -20,7 +20,8 @@ const residentSchema = new mongoose.Schema({
   password: {type: String, required: true},
   presidentId: {  type: String},
   isOwnerHome: {type: String}, 
-  occupation:{type:String},  
+  occupation:{type:String}, 
+  rationcardType:{type:String}, 
 });
 
 // Check if the model already exists
