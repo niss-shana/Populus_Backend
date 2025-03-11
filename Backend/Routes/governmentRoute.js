@@ -38,14 +38,6 @@ router.use((req, res, next) => {
 });
 
 
-
-
-
-
-
-
-
-
 router.get('/users', async (req, res) => {
   try {
     const users = await RequestUsers.find();

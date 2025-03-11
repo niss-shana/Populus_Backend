@@ -21,6 +21,7 @@ const residentSchema = new mongoose.Schema({
   email: {type: String},
   isOwnerHome: {type:String},
   occupation:{type:String},  
+  rationcardType:{type:String},
   
 });
 
