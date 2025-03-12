@@ -12,6 +12,7 @@ const residentSchema = new mongoose.Schema({
   mobileNo: { type: String, required: true },
   aadhaarNo: { type: String, required: true },
   rationId: { type: String, required: true },
+  selfGovType: { type: String},
   photo: { type: String },
   income: { type: String},
   wardNumber: { type: String },
