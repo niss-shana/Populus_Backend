@@ -174,8 +174,9 @@ router.get('/display', async (req, res) => {
   
   try {
     const { access } = req.query;
-    const accessArray = Array.isArray(access) ? access : [access]; // Handle single or multiple values
-    const announcements = await Announcement.find({ access: { $in: accessArray } }).sort({ createdAt: -1 });
+    console.log(access);
+  const accessArray = Array.isArray(access) ? access : [access]; // Handle single or multiple values
+  const announcements = await Announcement.find({ access: { $in: accessArray } }).sort({ createdAt: -1 });
     res.json({ announcements });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching announcements', error });
