@@ -1,11 +1,11 @@
 import express from 'express';
 const router = express.Router();
-import Result from '../Models/Result.js';
+import Result from '../models/Result.js';
 import { createCanvas } from 'canvas';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import VerifiedUsers from '../Models/verUsers.js';
+import VerifiedUsers from '../models/verUsers.js';
 import axios from 'axios';
 function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
   if (typeof radius === 'number') {

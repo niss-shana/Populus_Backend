@@ -3,8 +3,8 @@ import RequestUsers from '../models/requser.js';
 import VerifiedUsers from '../models/verUsers.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import Survey from '../Models/Survey.js';
-import Result from '../Models/Result.js';
+import Survey from '../models/Survey.js';
+import Result from '../models/Result.js';
 import nodemailer from 'nodemailer';
 
  
@@ -65,7 +65,7 @@ router.use((req, res, next) => {
 // Signup route
 router.post('/resident_signup', async (req, res) => {
   try {
-    console.log("resident add");
+    console.log("group resident add");
     console.log(req.body);
 
     // Check if username already exists
@@ -107,7 +107,7 @@ router.post('/resident_login', async (req, res) => {
     }
 
      const token = jwt.sign(
-          { userId: user._id, username: user.username }, // Payload
+          { userId: user._id, username: user.username ,access:user.presidentId}, // Payload
           process.env.JWT_KEY, // Secret key
           { expiresIn: '365d' } // Expires in 365 days
         );
