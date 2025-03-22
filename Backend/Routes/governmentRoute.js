@@ -239,7 +239,7 @@ router.post('/map', async (req, res) => {
 
 
 
-router.post('/housedetails',authenticateToken, async (req, res) => {
+router.post('/housedetails', async (req, res) => {
   try {
     console.log("labeeee")
     console.log(req.body)
