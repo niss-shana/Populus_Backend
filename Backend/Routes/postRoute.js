@@ -4,6 +4,23 @@ import Announcement from '../models/announcement.js';
 
 const router = express.Router();
 
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: "Access denied. No token provided." });
+  }
+
+  jwt.verify(token, process.env.JWT_KEY, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: "Invalid or expired token." });
+    }
+    console.log("Decoded user payload:", user); // Debugging
+    req.user = user; // Attach the user payload to the request object
+    next();
+  });
+};
 
 // Backend: government
 
@@ -76,15 +93,17 @@ router.post('/:postId/reaction', async (req, res) => {
 
 
 // Create Announcement
-router.post('/create', async (req, res) => {
+router.post('/create', authenticateToken, async (req, res) => {
   try {
     console.log("create");
     console.log("Received data:", req.body);
     console.log("Received file:", req.file);
-    const { department, title, message,time,imageUri,access } = req.body;
+    const { department, title, message,time,imageUri } = req.body;
+    const access = req.user.username;
+    console.log(req.user.username)
 
     // Validate required fields
-    if (!department || !title || !message || !access) {
+    if (!department || !title || !message ) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
@@ -152,9 +171,11 @@ router.delete('/delete/:postId', async (req, res) => {
 // Get All Announcements
 
 router.get('/display', async (req, res) => {
- 
+  
   try {
-    const announcements = await Announcement.find().sort({ createdAt: -1 });
+    const { access } = req.query;
+    const accessArray = Array.isArray(access) ? access : [access]; // Handle single or multiple values
+    const announcements = await Announcement.find({ access: { $in: accessArray } }).sort({ createdAt: -1 });
     res.json({ announcements });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching announcements', error });

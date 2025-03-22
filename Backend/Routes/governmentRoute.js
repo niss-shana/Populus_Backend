@@ -1,8 +1,8 @@
 import express  from 'express';
 import RequestUsers from '../models/requser.js';
 import VerifiedUsers from '../models/verUsers.js';
-import LocalGovernment from '../Models/locgov.js';
-import Survey from '../Models/Survey.js';
+import LocalGovernment from '../models/locgov.js';
+import Survey from '../models/Survey.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
@@ -288,6 +288,7 @@ router.post("/create_survey", authenticateToken, async (req, res) => {
     }
 
     // Create a new survey document
+
     const newSurvey = new Survey({ 
       title, 
       question, 
