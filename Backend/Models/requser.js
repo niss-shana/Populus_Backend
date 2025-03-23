@@ -8,8 +8,6 @@ const residentSchema = new mongoose.Schema({
   houseDetails: { type: String }, 
   wardNumber: { type: String }, 
   selfGovType: { type: String},
-  place: { type: String },
-  locality: { type: String },
   localBody: {type: String},
   district: { type: String},
   income: { type: String},
