@@ -357,10 +357,6 @@ router.post("/result", authenticateToken, async (req, res) => {
 
 
 
-
-
-
-
 router.post("/gender", authenticateToken, async (req, res) => {
   try {
     const { surveyId } = req.body;
@@ -423,15 +419,15 @@ router.post("/gender", authenticateToken, async (req, res) => {
     
     console.log("Option gender counts:", optionGenderCounts);
 
-    // Prepare data for the bar chart
+    // Prepare data for the mosaic plot
     const options = Object.keys(optionGenderCounts);
     
-    // Create canvas for the bar chart
+    // Create canvas for the mosaic plot
     const canvas = createCanvas(1200, 800);
     const ctx = canvas.getContext("2d");
 
     // Enhanced visualization
-    createEnhancedBarChart(ctx, canvas, options, optionGenderCounts);
+    createEnhancedMosaicPlot(ctx, canvas, options, optionGenderCounts);
 
     // Convert canvas to Base64 image
     const imageUrl = canvas.toDataURL("image/png");
@@ -447,8 +443,8 @@ router.post("/gender", authenticateToken, async (req, res) => {
   }
 });
 
-// Enhanced bar chart visualization function
-function createEnhancedBarChart(ctx, canvas, options, optionGenderCounts) {
+// Enhanced visualization function
+function createEnhancedMosaicPlot(ctx, canvas, options, optionGenderCounts) {
   // Canvas dimensions and margins
   const width = canvas.width;
   const height = canvas.height;
@@ -488,8 +484,7 @@ function createEnhancedBarChart(ctx, canvas, options, optionGenderCounts) {
   const totalResponses = totalCounts.reduce((sum, count) => sum + count, 0);
   
   // Calculate bar widths based on total counts (proportional)
-  const barWidth = chartWidth / options.length * 0.8;
-  const barSpacing = chartWidth / options.length * 0.2;
+  const barWidths = totalCounts.map(count => (count / totalResponses) * chartWidth);
   
   // Draw axes
   ctx.strokeStyle = "#374151";
@@ -519,44 +514,53 @@ function createEnhancedBarChart(ctx, canvas, options, optionGenderCounts) {
     }
   };
   
-  // Draw bars with enhanced styling
-  let x = margin.left + barSpacing / 2;
+  // Draw mosaic bars with enhanced styling
+  let x = margin.left;
   options.forEach((option, index) => {
+    const barWidth = barWidths[index];
+    const totalCount = totalCounts[index];
+    
     const maleCount = optionGenderCounts[option].Male;
     const femaleCount = optionGenderCounts[option].Female;
-    const totalCount = maleCount + femaleCount;
     
-    const maleHeight = (maleCount / totalCount) * chartHeight;
-    const femaleHeight = (femaleCount / totalCount) * chartHeight;
+    const maleRatio = maleCount / totalCount;
+    const femaleRatio = femaleCount / totalCount;
     
-    // Draw Female segment
+    const maleHeight = maleRatio * chartHeight;
+    const femaleHeight = femaleRatio * chartHeight;
+    
+    // Calculate percentage for labels
+    const malePercentage = Math.round(maleRatio * 100);
+    const femalePercentage = Math.round(femaleRatio * 100);
+    
+    // Draw Female segment (from top)
     const femaleGradient = ctx.createLinearGradient(
-      x, height - margin.bottom - femaleHeight, 
-      x + barWidth, height - margin.bottom
+      x, margin.top, 
+      x + barWidth, margin.top + femaleHeight
     );
     femaleGradient.addColorStop(0, colors.Female.gradient[0]);
     femaleGradient.addColorStop(1, colors.Female.gradient[1]);
     
     ctx.fillStyle = femaleGradient;
     ctx.beginPath();
-    ctx.rect(x, height - margin.bottom - femaleHeight, barWidth, femaleHeight);
+    ctx.rect(x, margin.top, barWidth, femaleHeight);
     ctx.fill();
     
     ctx.strokeStyle = colors.Female.border;
     ctx.lineWidth = 1.5;
     ctx.stroke();
     
-    // Draw Male segment
+    // Draw Male segment (below female)
     const maleGradient = ctx.createLinearGradient(
-      x, height - margin.bottom - femaleHeight - maleHeight, 
-      x + barWidth, height - margin.bottom - femaleHeight
+      x, margin.top + femaleHeight, 
+      x + barWidth, margin.top + femaleHeight + maleHeight
     );
     maleGradient.addColorStop(0, colors.Male.gradient[0]);
     maleGradient.addColorStop(1, colors.Male.gradient[1]);
     
     ctx.fillStyle = maleGradient;
     ctx.beginPath();
-    ctx.rect(x, height - margin.bottom - femaleHeight - maleHeight, barWidth, maleHeight);
+    ctx.rect(x, margin.top + femaleHeight, barWidth, maleHeight);
     ctx.fill();
     
     ctx.strokeStyle = colors.Male.border;
@@ -571,10 +575,19 @@ function createEnhancedBarChart(ctx, canvas, options, optionGenderCounts) {
         ctx.fillStyle = "#ffffff";
         ctx.textAlign = "center";
         ctx.fillText(
-          `${Math.round((femaleCount / totalCount) * 100)}%`, 
+          `${femalePercentage}%`, 
           x + barWidth / 2, 
-          height - margin.bottom - femaleHeight / 2 + 6
+          margin.top + femaleHeight / 2 + 6
         );
+        
+        if (femaleHeight > 60) {
+          ctx.font = "14px Arial, sans-serif";
+          ctx.fillText(
+            `(${femaleCount})`, 
+            x + barWidth / 2, 
+            margin.top + femaleHeight / 2 + 28
+          );
+        }
       }
       
       // Male percentage label (only if male segment exists)
@@ -583,10 +596,19 @@ function createEnhancedBarChart(ctx, canvas, options, optionGenderCounts) {
         ctx.fillStyle = "#ffffff";
         ctx.textAlign = "center";
         ctx.fillText(
-          `${Math.round((maleCount / totalCount) * 100)}%`, 
+          `${malePercentage}%`, 
           x + barWidth / 2, 
-          height - margin.bottom - femaleHeight - maleHeight / 2 + 6
+          margin.top + femaleHeight + maleHeight / 2 + 6
         );
+        
+        if (maleHeight > 60) {
+          ctx.font = "14px Arial, sans-serif";
+          ctx.fillText(
+            `(${maleCount})`, 
+            x + barWidth / 2, 
+            margin.top + femaleHeight + maleHeight / 2 + 28
+          );
+        }
       }
     }
     
@@ -612,7 +634,7 @@ function createEnhancedBarChart(ctx, canvas, options, optionGenderCounts) {
     ctx.restore();
     
     // Move to the next bar
-    x += barWidth + barSpacing;
+    x += barWidth;
   });
   
   // Draw Y-axis title with rotation
@@ -671,7 +693,7 @@ function createEnhancedBarChart(ctx, canvas, options, optionGenderCounts) {
   ctx.font = "italic 14px Arial, sans-serif";
   ctx.fillStyle = "#4b5563";
   ctx.textAlign = "center";
-  ctx.fillText("* Height of each bar represents proportion of total responses", width / 2, height - 60);
+  ctx.fillText("* Width of each bar represents proportion of total responses", width / 2, height - 60);
   
   // Add dataset information
   ctx.font = "italic 14px Arial, sans-serif";
@@ -692,26 +714,8 @@ function createEnhancedBarChart(ctx, canvas, options, optionGenderCounts) {
     ctx.fillText("Note: No female responses detected in this dataset", width / 2, height - 100);
   }
 }
+
 // Helper function to draw rounded rectangles
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

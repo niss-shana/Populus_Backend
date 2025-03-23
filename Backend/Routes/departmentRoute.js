@@ -1,7 +1,7 @@
 import express  from 'express';
 import RequestUsers from '../models/requser.js';
 import VerifiedUsers from '../models/verUsers.js';
-import LocalGovernment from '../Models/locgov.js';
+import LocalGovernment from '../models/locgov.js';
 import Department from '../models/department.js';
 import jwt from 'jsonwebtoken';
 const router = express.Router();
@@ -117,4 +117,3 @@ router.get('/profile/:username', async (req, res) => {
 
 
 export default router
-
