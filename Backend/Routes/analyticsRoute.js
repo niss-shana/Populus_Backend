@@ -105,7 +105,11 @@ function createEnhancedBarChart(ctx, canvas, options, counts, type) {
   ctx.fillText(
     type === "gender"
       ? "Gender Distribution by Response Option"
-      : "Ration Card Distribution by Response Option",
+      : type === "rationcard"
+      ? "Ration Card Distribution by Response Option"
+      : type === "income"
+      ? "Income Distribution by Response Option"
+      : "Age Distribution by Response Option",
     width / 2,
     margin.top / 2 + 10
   );
@@ -117,12 +121,21 @@ function createEnhancedBarChart(ctx, canvas, options, counts, type) {
   const totalCounts = options.map((option) => {
     if (type === "gender") {
       return counts[option].Male + counts[option].Female;
-    } else {
+    } else if (type === "rationcard") {
       return (
         counts[option].Yellow +
         counts[option].Pink +
         counts[option].Blue +
         counts[option].White
+      );
+    } else if (type === "income") {
+      return counts[option].Poor + counts[option].Medium + counts[option].Rich;
+    } else if (type === "age") {
+      return (
+        counts[option].Young +
+        counts[option].Adult +
+        counts[option].MiddleAged +
+        counts[option].Senior
       );
     }
   });
@@ -161,7 +174,8 @@ function createEnhancedBarChart(ctx, canvas, options, counts, type) {
             border: "#9d174d",
           },
         }
-      : {
+      : type === "rationcard"
+      ? {
           Yellow: {
             gradient: ["#fcd34d", "#f59e0b"], // Yellow gradient
             border: "#d97706",
@@ -178,6 +192,39 @@ function createEnhancedBarChart(ctx, canvas, options, counts, type) {
             gradient: ["#f3f4f6", "#d1d5db"], // White gradient
             border: "#9ca3af",
           },
+        }
+      : type === "income"
+      ? {
+          Poor: {
+            gradient: ["#ef4444", "#dc2626"], // Red gradient
+            border: "#b91c1c",
+          },
+          Medium: {
+            gradient: ["#f59e0b", "#d97706"], // Amber gradient
+            border: "#b45309",
+          },
+          Rich: {
+            gradient: ["#10b981", "#059669"], // Green gradient
+            border: "#047857",
+          },
+        }
+      : {
+          Young: {
+            gradient: ["#3b82f6", "#1d4ed8"], // Blue gradient
+            border: "#1e40af",
+          },
+          Adult: {
+            gradient: ["#10b981", "#059669"], // Green gradient
+            border: "#047857",
+          },
+          MiddleAged: {
+            gradient: ["#f59e0b", "#d97706"], // Amber gradient
+            border: "#b45309",
+          },
+          Senior: {
+            gradient: ["#ec4899", "#be185d"], // Pink gradient
+            border: "#9d174d",
+          },
         };
 
   // Draw bars with enhanced styling
@@ -189,12 +236,25 @@ function createEnhancedBarChart(ctx, canvas, options, counts, type) {
         (counts[option].Male / totalCounts[index]) * chartHeight,
         (counts[option].Female / totalCounts[index]) * chartHeight,
       ];
-    } else {
+    } else if (type === "rationcard") {
       segmentHeights = [
         (counts[option].Yellow / totalCounts[index]) * chartHeight,
         (counts[option].Pink / totalCounts[index]) * chartHeight,
         (counts[option].Blue / totalCounts[index]) * chartHeight,
         (counts[option].White / totalCounts[index]) * chartHeight,
+      ];
+    } else if (type === "income") {
+      segmentHeights = [
+        (counts[option].Poor / totalCounts[index]) * chartHeight,
+        (counts[option].Medium / totalCounts[index]) * chartHeight,
+        (counts[option].Rich / totalCounts[index]) * chartHeight,
+      ];
+    } else if (type === "age") {
+      segmentHeights = [
+        (counts[option].Young / totalCounts[index]) * chartHeight,
+        (counts[option].Adult / totalCounts[index]) * chartHeight,
+        (counts[option].MiddleAged / totalCounts[index]) * chartHeight,
+        (counts[option].Senior / totalCounts[index]) * chartHeight,
       ];
     }
 
@@ -269,7 +329,13 @@ function createEnhancedBarChart(ctx, canvas, options, counts, type) {
   ctx.fillStyle = "#111827";
   ctx.textAlign = "center";
   ctx.fillText(
-    type === "gender" ? "Gender Proportion" : "Ration Card Proportion",
+    type === "gender"
+      ? "Gender Proportion"
+      : type === "rationcard"
+      ? "Ration Card Proportion"
+      : type === "income"
+      ? "Income Proportion"
+      : "Age Proportion",
     0,
     0
   );
@@ -284,8 +350,8 @@ function createEnhancedBarChart(ctx, canvas, options, counts, type) {
   // Create an enhanced legend
   const legendX = width - margin.right + 20;
   const legendY = margin.top;
-  const legendWidth = type === "gender" ? 90 : 120;
-  const legendHeight = type === "gender" ? 130 : 180;
+  const legendWidth = type === "gender" ? 90 : type === "rationcard" ? 120 : type === "income" ? 90 : 120;
+  const legendHeight = type === "gender" ? 130 : type === "rationcard" ? 180 : type === "income" ? 130 : 180;
 
   // Legend background
   ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
@@ -297,7 +363,17 @@ function createEnhancedBarChart(ctx, canvas, options, counts, type) {
   ctx.font = "bold 16px Arial, sans-serif";
   ctx.fillStyle = "#111827";
   ctx.textAlign = "left";
-  ctx.fillText(type === "gender" ? "Gender" : "Ration Card", legendX, legendY + 25);
+  ctx.fillText(
+    type === "gender"
+      ? "Gender"
+      : type === "rationcard"
+      ? "Ration Card"
+      : type === "income"
+      ? "Income"
+      : "Age",
+    legendX,
+    legendY + 25
+  );
 
   // Legend items
   const legendItems = Object.keys(colors).map((key, i) => ({
@@ -347,7 +423,7 @@ function createEnhancedBarChart(ctx, canvas, options, counts, type) {
       ctx.textAlign = "center";
       ctx.fillText("Note: No female responses detected in this dataset", width / 2, height - 100);
     }
-  } else {
+  } else if (type === "rationcard") {
     if (!options.some((option) => counts[option].Yellow > 0)) {
       ctx.font = "bold 16px Arial, sans-serif";
       ctx.fillStyle = "#ef4444";
@@ -372,10 +448,52 @@ function createEnhancedBarChart(ctx, canvas, options, counts, type) {
       ctx.textAlign = "center";
       ctx.fillText("Note: No White Card responses detected in this dataset", width / 2, height - 160);
     }
+  } else if (type === "income") {
+    if (!options.some((option) => counts[option].Poor > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No Poor income responses detected in this dataset", width / 2, height - 100);
+    }
+    if (!options.some((option) => counts[option].Medium > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No Medium income responses detected in this dataset", width / 2, height - 120);
+    }
+    if (!options.some((option) => counts[option].Rich > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No Rich income responses detected in this dataset", width / 2, height - 140);
+    }
+  } else if (type === "age") {
+    if (!options.some((option) => counts[option].Young > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No Young age responses detected in this dataset", width / 2, height - 100);
+    }
+    if (!options.some((option) => counts[option].Adult > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No Adult age responses detected in this dataset", width / 2, height - 120);
+    }
+    if (!options.some((option) => counts[option].MiddleAged > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No Middle-aged responses detected in this dataset", width / 2, height - 140);
+    }
+    if (!options.some((option) => counts[option].Senior > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No Senior age responses detected in this dataset", width / 2, height - 160);
+    }
   }
 }
-
-
 
 
 
@@ -757,13 +875,10 @@ router.post("/gender", authenticateToken, async (req, res) => {
 
 
 
-
-
-
 router.post("/age", authenticateToken, async (req, res) => {
   try {
     const { surveyId } = req.body;
-    console.log("age analysis started");
+    console.log("Age analysis started");
 
     if (!surveyId) {
       return res.status(400).json({ error: "Survey ID is required" });
@@ -782,7 +897,6 @@ router.post("/age", authenticateToken, async (req, res) => {
     const verifiedUsers = await VerifiedUsers.find({
       username: { $in: usernames },
     });
-    console.log(usernames)
 
     // Create username-to-age mapping
     const ageMap = {};
@@ -811,47 +925,44 @@ router.post("/age", authenticateToken, async (req, res) => {
 
     // Filter out null ages
     const filteredData = ageData.filter(data => data.age !== null);
-    console.log("Age data:", ageData);
 
-    // Group ages by option
-    const agesByOption = {};
-    filteredData.forEach(data => {
-      if (!agesByOption[data.option]) {
-        agesByOption[data.option] = [];
+    // Categorize ages into groups
+    const categorizedData = filteredData.map(item => ({
+      option: item.option,
+      ageCategory: item.age <= 20 ? "Young" :
+                   item.age <= 40 ? "Adult" :
+                   item.age <= 60 ? "MiddleAged" : // Use "MiddleAged" instead of "Middle-aged"
+                   "Senior",
+    }));
+    
+    console.log("Categorized data:", categorizedData);
+
+    // Count the occurrences of each option by age category
+    const optionAgeCounts = {};
+    categorizedData.forEach(data => {
+      if (!optionAgeCounts[data.option]) {
+        optionAgeCounts[data.option] = { Young: 0, Adult: 0, MiddleAged: 0, Senior: 0 }; // Use "MiddleAged"
       }
-      agesByOption[data.option].push(data.age);
+      optionAgeCounts[data.option][data.ageCategory]++;
     });
     
-    console.log("Ages by option:", agesByOption);
+    console.log("Option age counts:", optionAgeCounts);
 
-    // Calculate age statistics for each option
-    const ageStats = {};
-    Object.keys(agesByOption).forEach(option => {
-      const ages = agesByOption[option];
-      ageStats[option] = {
-        count: ages.length,
-        min: Math.min(...ages),
-        max: Math.max(...ages),
-        mean: ages.reduce((sum, age) => sum + age, 0) / ages.length,
-        median: calculateMedian(ages)
-      };
-    });
+    // Prepare data for the bar chart
+    const options = Object.keys(optionAgeCounts);
     
-    console.log("Age statistics:", ageStats);
-
-    // Create canvas for the strip plot
+    // Create canvas for the bar chart
     const canvas = createCanvas(1200, 800);
     const ctx = canvas.getContext("2d");
 
-    // Create strip plot visualization
-    createAgeStripPlot(ctx, canvas, agesByOption, ageStats);
+    // Enhanced visualization
+    createEnhancedBarChart(ctx, canvas, options, optionAgeCounts, "age");
 
     // Convert canvas to Base64 image
     const imageUrl = canvas.toDataURL("image/png");
 
     res.status(200).json({
-      ageData: filteredData,
-      ageStats: ageStats,
+      ageData: categorizedData,
       image: imageUrl,
     });
 
@@ -860,198 +971,6 @@ router.post("/age", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-// Helper function to calculate median
-function calculateMedian(values) {
-  if (values.length === 0) return 0;
-  
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  
-  if (sorted.length % 2 === 0) {
-    return (sorted[middle - 1] + sorted[middle]) / 2;
-  }
-  
-  return sorted[middle];
-}
-
-// Function to create a strip plot visualization for age distribution
-function createAgeStripPlot(ctx, canvas, agesByOption) {
-  // Canvas dimensions and margins
-  const width = canvas.width;
-  const height = canvas.height;
-  const margin = { top: 80, right: 120, bottom: 120, left: 80 };
-  const chartWidth = width - margin.left - margin.right;
-  const chartHeight = height - margin.top - margin.bottom;
-
-  // Background with gradient
-  const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
-  bgGradient.addColorStop(0, "#f9fafb");
-  bgGradient.addColorStop(1, "#f3f4f6");
-  ctx.fillStyle = bgGradient;
-  ctx.fillRect(0, 0, width, height);
-
-  // Draw border and shadow effect
-  ctx.strokeStyle = "#e5e7eb";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(10, 10, width - 20, height - 20);
-
-  // Add title with shadow
-  ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
-  ctx.shadowBlur = 5;
-  ctx.shadowOffsetX = 2;
-  ctx.shadowOffsetY = 2;
-  ctx.font = "bold 32px Arial, sans-serif";
-  ctx.fillStyle = "#111827";
-  ctx.textAlign = "center";
-  ctx.fillText("Age Distribution by Response Option", width / 2, margin.top / 2 + 10);
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-
-  // Get all options
-  const options = Object.keys(agesByOption);
-
-  // Set global min and max age for scaling
-  const globalMinAge = 0;
-  const globalMaxAge = 70;
-
-  // Y and X scales
-  const yScale = value => height - margin.bottom - ((value - globalMinAge) / (globalMaxAge - globalMinAge)) * chartHeight;
-  const xScale = index => margin.left + (index * (chartWidth / options.length)) + (chartWidth / options.length / 2);
-
-  // Draw axes
-  ctx.strokeStyle = "#374151";
-  ctx.lineWidth = 2;
-
-  // Y-axis (Age)
-  ctx.beginPath();
-  ctx.moveTo(margin.left, margin.top);
-  ctx.lineTo(margin.left, height - margin.bottom);
-  ctx.stroke();
-
-  // X-axis (Options)
-  ctx.beginPath();
-  ctx.moveTo(margin.left, height - margin.bottom);
-  ctx.lineTo(margin.left + chartWidth, height - margin.bottom);
-  ctx.stroke();
-
-  // Draw Y-axis ticks and labels
-  const tickCount = 7; // 0 to 70 in steps of 10
-  const tickStep = (globalMaxAge - globalMinAge) / tickCount;
-
-  for (let i = 0; i <= tickCount; i++) {
-    const tickValue = globalMinAge + (i * tickStep);
-    const y = yScale(tickValue);
-
-    // Draw tick
-    ctx.beginPath();
-    ctx.moveTo(margin.left, y);
-    ctx.lineTo(margin.left - 10, y);
-    ctx.strokeStyle = "#374151";
-    ctx.stroke();
-
-    // Draw tick label
-    ctx.font = "14px Arial, sans-serif";
-    ctx.fillStyle = "#4b5563";
-    ctx.textAlign = "right";
-    ctx.fillText(Math.round(tickValue), margin.left - 15, y + 5);
-  }
-
-  // Color palette for different options
-  const colors = [
-    "#3b82f6", // Blue
-    "#ec4899", // Pink
-    "#10b981", // Green
-    "#f59e0b", // Amber
-    "#8b5cf6", // Purple
-    "#ef4444", // Red
-  ];
-
-  // Draw horizontal dashed lines for each option
-  options.forEach((option, index) => {
-    const x = xScale(index);
-
-    // Draw option label
-    ctx.font = "bold 16px Arial, sans-serif";
-    ctx.fillStyle = "#111827";
-    ctx.textAlign = "center";
-    ctx.fillText(option, x, height - margin.bottom + 40);
-
-    // Draw count
-    ctx.font = "14px Arial, sans-serif";
-    ctx.fillStyle = "#4b5563";
-    ctx.fillText(`(n=${agesByOption[option].length})`, x, height - margin.bottom + 60);
-  });
-
-  // Function to add jitter to avoid overlapping points
-  const jitter = () => (Math.random() - 0.5) * (chartWidth / options.length * 0.7);
-
-  // Draw data points for each option
-  options.forEach((option, index) => {
-    const ages = agesByOption[option];
-    const color = colors[index % colors.length];
-
-    // Draw strip plot points
-    ages.forEach(age => {
-      const x = xScale(index) + jitter();
-      const y = yScale(age);
-
-      // Draw point with gradient
-      const pointGradient = ctx.createRadialGradient(x, y, 0, x, y, 6);
-      pointGradient.addColorStop(0, color);
-      pointGradient.addColorStop(1, color + "80"); // Add transparency
-
-      ctx.beginPath();
-      ctx.arc(x, y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = pointGradient;
-      ctx.fill();
-
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = color;
-      ctx.stroke();
-    });
-  });
-
-  // Draw Y-axis title
-  ctx.save();
-  ctx.translate(25, height / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.font = "bold 18px Arial, sans-serif";
-  ctx.fillStyle = "#111827";
-  ctx.textAlign = "center";
-  ctx.fillText("Age (years)", 0, 0);
-  ctx.restore();
-
-  // Draw X-axis title
-  ctx.font = "bold 18px Arial, sans-serif";
-  ctx.fillStyle = "#111827";
-  ctx.textAlign = "center";
-  ctx.fillText("Response Options", width / 2, height - 30);
-
-  // Add a note about the visualization
-  ctx.font = "italic 14px Arial, sans-serif";
-  ctx.fillStyle = "#4b5563";
-  ctx.textAlign = "center";
-  ctx.fillText("* Each dot represents one response", width / 2, height - 60);
-
-  // Add total responses count
-  let totalResponses = 0;
-  Object.values(agesByOption).forEach(ages => {
-    totalResponses += ages.length;
-  });
-
-  ctx.font = "italic 14px Arial, sans-serif";
-  ctx.fillStyle = "#4b5563";
-  ctx.textAlign = "center";
-  ctx.fillText(`Total responses with age data: ${totalResponses}`, width / 2, height - 80);
-}
-
-// Helper function to draw rounded rectangles (reusing from the gender visualization)
-
-
-
-
 
 
 router.post("/rationcard", authenticateToken, async (req, res) => {
@@ -1378,6 +1297,92 @@ function createWardHeatmap(ctx, canvas, options, wards, optionWardCounts) {
   ctx.textAlign = "center";
   ctx.fillText(`Total responses with ward data: ${totalResponses}`, width / 2, height - 80);
 }
+
+
+
+router.post("/income", authenticateToken, async (req, res) => {
+  try {
+    const { surveyId } = req.body;
+    console.log("Income analysis started");
+
+    if (!surveyId) {
+      return res.status(400).json({ error: "Survey ID is required" });
+    }
+
+    const dataset = await Result.find({ surveyid: surveyId });
+
+    if (dataset.length === 0) {
+      return res.status(404).json({ error: "No results found for this survey" });
+    }
+
+    // Extract all unique usernames from results
+    const usernames = dataset.map(result => result.user);
+
+    // Get corresponding verified users' income
+    const verifiedUsers = await VerifiedUsers.find({
+      username: { $in: usernames },
+    });
+
+    // Create username-to-income mapping
+    const incomeMap = {};
+    verifiedUsers.forEach(user => {
+      incomeMap[user.username] = user.income || null;
+    });
+
+    // Create final dataset with option and income
+    const incomeData = dataset.map(result => ({
+      option: result.option,
+      income: incomeMap[result.user] || null,
+    }));
+    console.log(incomeData);
+
+    // Filter out null incomes
+    const filteredData = incomeData.filter(data => data.income !== null);
+
+    // Categorize income into Poor, Medium, Rich
+    const categorizedData = filteredData.map(item => ({
+      option: item.option,
+      incomeCategory: item.income < 100000 ? "Poor" :
+                     item.income >= 100000 && item.income <= 1000000 ? "Medium" :
+                     "Rich",
+    }));
+    
+    console.log("Categorized data:", categorizedData);
+
+    // Count the occurrences of each option by income category
+    const optionIncomeCounts = {};
+    categorizedData.forEach(data => {
+      if (!optionIncomeCounts[data.option]) {
+        optionIncomeCounts[data.option] = { Poor: 0, Medium: 0, Rich: 0 };
+      }
+      optionIncomeCounts[data.option][data.incomeCategory]++;
+    });
+    
+    console.log("Option income counts:", optionIncomeCounts);
+
+    // Prepare data for the bar chart
+    const options = Object.keys(optionIncomeCounts);
+    
+    // Create canvas for the bar chart
+    const canvas = createCanvas(1200, 800);
+    const ctx = canvas.getContext("2d");
+
+    // Enhanced visualization
+    createEnhancedBarChart(ctx, canvas, options, optionIncomeCounts, "income");
+
+    // Convert canvas to Base64 image
+    const imageUrl = canvas.toDataURL("image/png");
+
+    res.status(200).json({
+      incomeData: categorizedData,
+      image: imageUrl,
+    });
+
+  } catch (error) {
+    console.error("Error fetching income data:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 
 export default router;
