@@ -3,6 +3,7 @@ import RequestUsers from '../models/requser.js';
 import VerifiedUsers from '../models/verUsers.js';
 import LocalGovernment from '../models/locgov.js';
 import Department from '../models/department.js';
+import jwt from 'jsonwebtoken';
 const router = express.Router();
 
 
@@ -48,7 +49,8 @@ router.post('/login', async (req, res) => {
       console.log("error");
     return res.status(401).json({ error: 'Authentication failed' });
     }
-    const passwordMatch = await bcrypt.compare(password, user.password);
+    // const passwordMatch = await bcrypt.compare(password, user.password);
+    const passwordMatch = (password === user.password);//temporary
     console.log("Password is match:",passwordMatch);
     if (!passwordMatch) {
     return res.status(401).json({ error: 'Authentication failed' });
@@ -69,7 +71,44 @@ router.post('/login', async (req, res) => {
 
 
 
+// GET /government/profile/:username
+router.get('/profile/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
 
+    // Find user by username
+    const user = await Department.findOne({ username });
+    console.log(user)
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Remove sensitive information
+    const userProfile = {
+      _id: user._id,
+      name: user.fullName,
+      username: user.username,
+      email: user.email,
+      mobileNo: user.mobile,
+      district: user.district,
+      department: user.department,
+      locality: user.localBody,
+      photo: user.photo
+    };
+
+    res.json(userProfile);
+  } catch (error) {
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching profile data' 
+    });
+  }
+});
 
 
 

@@ -421,7 +421,7 @@ router.get('/profile/:username', async (req, res) => {
       mobileNo: user.mobile,
       district: user.district,
       selfGovType: user.selfGovType,
-      localBody: user.localBody,
+      locality: user.locality,
       photo: user.photo
     };
 
