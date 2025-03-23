@@ -1,21 +1,21 @@
 import mongoose from 'mongoose';
 
 const govSchema = new mongoose.Schema({
-  fullName: { type: String, required: true }, // Corrected from 'name' to 'fullName'
-  dob: { type: String, required: true }, // Corrected from 'dateOfBirth' to 'dob'
+  fullName: { type: String, required: true },
+  dob: { type: String, required: true },
   gender: { type: String, required: true },
-  house: { type: String, required: true }, // Corrected from 'houseDetails' to 'house'
+  house: { type: String, required: true },
   place: { type: String, required: true },
   locality: { type: String, required: true },
-  selfGovType:{ type: String, required: true},
+  selfGovType: { type: String, required: true },
   district: { type: String, required: true },
-  mobile: { type: String, required: true }, // No validation added
-  aadhaar: { type: String, required: true }, // No validation added
+  mobile: { type: String, required: true },
+  aadhaar: { type: String, required: true },
   email: { type: String, required: true },
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  photo: { type: String }, // File path or URL for the photo
-}, { timestamps: true }); // Adds createdAt and updatedAt fields automatically
+  photo: { type: String },
+}, { timestamps: true });
 
-const LocalGovernment = mongoose.model('LocalGovernment', govSchema);
+const LocalGovernment = mongoose.models.LocalGovernment || mongoose.model('LocalGovernment', govSchema);
 export default LocalGovernment;

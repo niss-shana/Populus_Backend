@@ -58,7 +58,8 @@ router.use((req, res, next) => {
   }
   authenticateToken(req, res, next);
 });
-
+const canvas = createCanvas(1200, 800);
+const ctx = canvas.getContext('2d');
 
 
 function calculateAge(dateOfBirth) {
@@ -72,6 +73,306 @@ function calculateAge(dateOfBirth) {
   }
 
   return age;
+}
+function createEnhancedBarChart(ctx, canvas, options, counts, type) {
+  // Canvas dimensions and margins
+  const width = canvas.width;
+  const height = canvas.height;
+  const margin = { top: 80, right: 120, bottom: 120, left: 80 };
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+
+  // Background with gradient
+  const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+  bgGradient.addColorStop(0, "#f9fafb");
+  bgGradient.addColorStop(1, "#f3f4f6");
+  ctx.fillStyle = bgGradient;
+  ctx.fillRect(0, 0, width, height);
+
+  // Draw border and shadow effect
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(10, 10, width - 20, height - 20);
+
+  // Add title with shadow
+  ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
+  ctx.shadowBlur = 5;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+  ctx.font = "bold 32px Arial, sans-serif";
+  ctx.fillStyle = "#111827";
+  ctx.textAlign = "center";
+  ctx.fillText(
+    type === "gender"
+      ? "Gender Distribution by Response Option"
+      : "Ration Card Distribution by Response Option",
+    width / 2,
+    margin.top / 2 + 10
+  );
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  // Calculate total counts for each option
+  const totalCounts = options.map((option) => {
+    if (type === "gender") {
+      return counts[option].Male + counts[option].Female;
+    } else {
+      return (
+        counts[option].Yellow +
+        counts[option].Pink +
+        counts[option].Blue +
+        counts[option].White
+      );
+    }
+  });
+  const totalResponses = totalCounts.reduce((sum, count) => sum + count, 0);
+
+  // Calculate bar widths based on total counts (proportional)
+  const barWidth = (chartWidth / options.length) * 0.8;
+  const barSpacing = (chartWidth / options.length) * 0.2;
+
+  // Draw axes
+  ctx.strokeStyle = "#374151";
+  ctx.lineWidth = 2;
+
+  // X-axis
+  ctx.beginPath();
+  ctx.moveTo(margin.left, height - margin.bottom);
+  ctx.lineTo(margin.left + chartWidth, height - margin.bottom);
+  ctx.stroke();
+
+  // Y-axis
+  ctx.beginPath();
+  ctx.moveTo(margin.left, margin.top);
+  ctx.lineTo(margin.left, height - margin.bottom);
+  ctx.stroke();
+
+  // Modern color palette for categories
+  const colors =
+    type === "gender"
+      ? {
+          Male: {
+            gradient: ["#3b82f6", "#1d4ed8"], // Blue gradient
+            border: "#1e40af",
+          },
+          Female: {
+            gradient: ["#ec4899", "#be185d"], // Pink gradient
+            border: "#9d174d",
+          },
+        }
+      : {
+          Yellow: {
+            gradient: ["#fcd34d", "#f59e0b"], // Yellow gradient
+            border: "#d97706",
+          },
+          Pink: {
+            gradient: ["#ec4899", "#be185d"], // Pink gradient
+            border: "#9d174d",
+          },
+          Blue: {
+            gradient: ["#3b82f6", "#1d4ed8"], // Blue gradient
+            border: "#1e40af",
+          },
+          White: {
+            gradient: ["#f3f4f6", "#d1d5db"], // White gradient
+            border: "#9ca3af",
+          },
+        };
+
+  // Draw bars with enhanced styling
+  let x = margin.left + barSpacing / 2;
+  options.forEach((option, index) => {
+    let segmentHeights = [];
+    if (type === "gender") {
+      segmentHeights = [
+        (counts[option].Male / totalCounts[index]) * chartHeight,
+        (counts[option].Female / totalCounts[index]) * chartHeight,
+      ];
+    } else {
+      segmentHeights = [
+        (counts[option].Yellow / totalCounts[index]) * chartHeight,
+        (counts[option].Pink / totalCounts[index]) * chartHeight,
+        (counts[option].Blue / totalCounts[index]) * chartHeight,
+        (counts[option].White / totalCounts[index]) * chartHeight,
+      ];
+    }
+
+    let y = height - margin.bottom;
+    Object.keys(colors).forEach((key, i) => {
+      const height = segmentHeights[i];
+      if (height > 0) {
+        const gradient = ctx.createLinearGradient(
+          x,
+          y - height,
+          x + barWidth,
+          y
+        );
+        gradient.addColorStop(0, colors[key].gradient[0]);
+        gradient.addColorStop(1, colors[key].gradient[1]);
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.rect(x, y - height, barWidth, height);
+        ctx.fill();
+
+        ctx.strokeStyle = colors[key].border;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Add percentage labels if enough space
+        if (barWidth > 50 && height > 30) {
+          ctx.font = "bold 16px Arial, sans-serif";
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "center";
+          ctx.fillText(
+            `${Math.round((segmentHeights[i] / chartHeight) * 100)}%`,
+            x + barWidth / 2,
+            y - height / 2 + 6
+          );
+        }
+
+        y -= height;
+      }
+    });
+
+    // Option label with rotation for long text
+    ctx.save();
+    ctx.translate(x + barWidth / 2, height - margin.bottom + 20);
+
+    // Rotate labels if option text is long
+    if (option.length > 10 && barWidth < 100) {
+      ctx.rotate(Math.PI / 6);
+    }
+
+    ctx.font = "bold 16px Arial, sans-serif";
+    ctx.fillStyle = "#111827";
+    ctx.textAlign = "center";
+    ctx.fillText(option, 0, 0);
+
+    // Add total count below option
+    ctx.font = "14px Arial, sans-serif";
+    ctx.fillStyle = "#4b5563";
+    ctx.fillText(`(n=${totalCounts[index]})`, 0, 24);
+
+    ctx.restore();
+
+    // Move to the next bar
+    x += barWidth + barSpacing;
+  });
+
+  // Draw Y-axis title with rotation
+  ctx.save();
+  ctx.translate(25, height / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.font = "bold 18px Arial, sans-serif";
+  ctx.fillStyle = "#111827";
+  ctx.textAlign = "center";
+  ctx.fillText(
+    type === "gender" ? "Gender Proportion" : "Ration Card Proportion",
+    0,
+    0
+  );
+  ctx.restore();
+
+  // Draw X-axis title
+  ctx.font = "bold 18px Arial, sans-serif";
+  ctx.fillStyle = "#111827";
+  ctx.textAlign = "center";
+  ctx.fillText("Response Options", width / 2, height - 30);
+
+  // Create an enhanced legend
+  const legendX = width - margin.right + 20;
+  const legendY = margin.top;
+  const legendWidth = type === "gender" ? 90 : 120;
+  const legendHeight = type === "gender" ? 130 : 180;
+
+  // Legend background
+  ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+  ctx.strokeStyle = "#d1d5db";
+  ctx.lineWidth = 1;
+  roundRect(ctx, legendX - 10, legendY, legendWidth, legendHeight, 8, true, true);
+
+  // Legend title
+  ctx.font = "bold 16px Arial, sans-serif";
+  ctx.fillStyle = "#111827";
+  ctx.textAlign = "left";
+  ctx.fillText(type === "gender" ? "Gender" : "Ration Card", legendX, legendY + 25);
+
+  // Legend items
+  const legendItems = Object.keys(colors).map((key, i) => ({
+    label: key,
+    color: colors[key].gradient[0],
+    y: legendY + 55 + i * 35,
+  }));
+
+  legendItems.forEach((item) => {
+    // Color box
+    ctx.fillStyle = item.color;
+    roundRect(ctx, legendX, item.y - 12, 20, 20, 4, true, false);
+
+    // Label
+    ctx.font = "15px Arial, sans-serif";
+    ctx.fillStyle = "#111827";
+    ctx.textAlign = "left";
+    ctx.fillText(item.label, legendX + 30, item.y);
+  });
+
+  // Add a note about the visualization
+  ctx.font = "italic 14px Arial, sans-serif";
+  ctx.fillStyle = "#4b5563";
+  ctx.textAlign = "center";
+  ctx.fillText(
+    "* Height of each bar represents proportion of total responses",
+    width / 2,
+    height - 60
+  );
+
+  // Add dataset information
+  ctx.font = "italic 14px Arial, sans-serif";
+  ctx.fillStyle = "#4b5563";
+  ctx.textAlign = "center";
+  ctx.fillText(`Total responses: ${totalResponses}`, width / 2, height - 80);
+
+  // Draw a border around the chart area
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(margin.left, margin.top, chartWidth, chartHeight);
+
+  // Add notes for missing data
+  if (type === "gender") {
+    if (!options.some((option) => counts[option].Female > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No female responses detected in this dataset", width / 2, height - 100);
+    }
+  } else {
+    if (!options.some((option) => counts[option].Yellow > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No Yellow Card responses detected in this dataset", width / 2, height - 100);
+    }
+    if (!options.some((option) => counts[option].Pink > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No Pink Card responses detected in this dataset", width / 2, height - 120);
+    }
+    if (!options.some((option) => counts[option].Blue > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No Blue Card responses detected in this dataset", width / 2, height - 140);
+    }
+    if (!options.some((option) => counts[option].White > 0)) {
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillStyle = "#ef4444";
+      ctx.textAlign = "center";
+      ctx.fillText("Note: No White Card responses detected in this dataset", width / 2, height - 160);
+    }
+  }
 }
 
 
@@ -360,7 +661,6 @@ router.post("/result", authenticateToken, async (req, res) => {
 
 
 
-
 router.post("/gender", authenticateToken, async (req, res) => {
   try {
     const { surveyId } = req.body;
@@ -431,7 +731,7 @@ router.post("/gender", authenticateToken, async (req, res) => {
     const ctx = canvas.getContext("2d");
 
     // Enhanced visualization
-    createEnhancedBarChart(ctx, canvas, options, optionGenderCounts);
+    createEnhancedBarChart(ctx, canvas, options, optionGenderCounts, "gender");
 
     // Convert canvas to Base64 image
     const imageUrl = canvas.toDataURL("image/png");
@@ -446,262 +746,6 @@ router.post("/gender", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-// Enhanced bar chart visualization function
-function createEnhancedBarChart(ctx, canvas, options, optionGenderCounts) {
-  // Canvas dimensions and margins
-  const width = canvas.width;
-  const height = canvas.height;
-  const margin = { top: 80, right: 120, bottom: 120, left: 80 };
-  const chartWidth = width - margin.left - margin.right;
-  const chartHeight = height - margin.top - margin.bottom;
-  
-  // Background with gradient
-  const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
-  bgGradient.addColorStop(0, "#f9fafb");
-  bgGradient.addColorStop(1, "#f3f4f6");
-  ctx.fillStyle = bgGradient;
-  ctx.fillRect(0, 0, width, height);
-  
-  // Draw border and shadow effect
-  ctx.strokeStyle = "#e5e7eb";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(10, 10, width - 20, height - 20);
-  
-  // Add title with shadow
-  ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
-  ctx.shadowBlur = 5;
-  ctx.shadowOffsetX = 2;
-  ctx.shadowOffsetY = 2;
-  ctx.font = "bold 32px Arial, sans-serif";
-  ctx.fillStyle = "#111827";
-  ctx.textAlign = "center";
-  ctx.fillText("Gender Distribution by Response Option", width / 2, margin.top / 2 + 10);
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-  
-  // Calculate total counts for each option
-  const totalCounts = options.map(option => 
-    optionGenderCounts[option].Male + optionGenderCounts[option].Female
-  );
-  const totalResponses = totalCounts.reduce((sum, count) => sum + count, 0);
-  
-  // Calculate bar widths based on total counts (proportional)
-  const barWidth = chartWidth / options.length * 0.8;
-  const barSpacing = chartWidth / options.length * 0.2;
-  
-  // Draw axes
-  ctx.strokeStyle = "#374151";
-  ctx.lineWidth = 2;
-  
-  // X-axis
-  ctx.beginPath();
-  ctx.moveTo(margin.left, height - margin.bottom);
-  ctx.lineTo(margin.left + chartWidth, height - margin.bottom);
-  ctx.stroke();
-  
-  // Y-axis
-  ctx.beginPath();
-  ctx.moveTo(margin.left, margin.top);
-  ctx.lineTo(margin.left, height - margin.bottom);
-  ctx.stroke();
-  
-  // Modern color palette for gender categories
-  const colors = {
-    Male: {
-      gradient: ["#3b82f6", "#1d4ed8"],  // Blue gradient
-      border: "#1e40af"
-    },
-    Female: {
-      gradient: ["#ec4899", "#be185d"],  // Pink gradient
-      border: "#9d174d"
-    }
-  };
-  
-  // Draw bars with enhanced styling
-  let x = margin.left + barSpacing / 2;
-  options.forEach((option, index) => {
-    const maleCount = optionGenderCounts[option].Male;
-    const femaleCount = optionGenderCounts[option].Female;
-    const totalCount = maleCount + femaleCount;
-    
-    const maleHeight = (maleCount / totalCount) * chartHeight;
-    const femaleHeight = (femaleCount / totalCount) * chartHeight;
-    
-    // Draw Female segment
-    const femaleGradient = ctx.createLinearGradient(
-      x, height - margin.bottom - femaleHeight, 
-      x + barWidth, height - margin.bottom
-    );
-    femaleGradient.addColorStop(0, colors.Female.gradient[0]);
-    femaleGradient.addColorStop(1, colors.Female.gradient[1]);
-    
-    ctx.fillStyle = femaleGradient;
-    ctx.beginPath();
-    ctx.rect(x, height - margin.bottom - femaleHeight, barWidth, femaleHeight);
-    ctx.fill();
-    
-    ctx.strokeStyle = colors.Female.border;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    
-    // Draw Male segment
-    const maleGradient = ctx.createLinearGradient(
-      x, height - margin.bottom - femaleHeight - maleHeight, 
-      x + barWidth, height - margin.bottom - femaleHeight
-    );
-    maleGradient.addColorStop(0, colors.Male.gradient[0]);
-    maleGradient.addColorStop(1, colors.Male.gradient[1]);
-    
-    ctx.fillStyle = maleGradient;
-    ctx.beginPath();
-    ctx.rect(x, height - margin.bottom - femaleHeight - maleHeight, barWidth, maleHeight);
-    ctx.fill();
-    
-    ctx.strokeStyle = colors.Male.border;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    
-    // Add labels for each segment if enough space
-    if (barWidth > 50) {
-      // Female percentage label (only if female segment exists)
-      if (femaleHeight > 30 && femaleCount > 0) {
-        ctx.font = "bold 16px Arial, sans-serif";
-        ctx.fillStyle = "#ffffff";
-        ctx.textAlign = "center";
-        ctx.fillText(
-          `${Math.round((femaleCount / totalCount) * 100)}%`, 
-          x + barWidth / 2, 
-          height - margin.bottom - femaleHeight / 2 + 6
-        );
-      }
-      
-      // Male percentage label (only if male segment exists)
-      if (maleHeight > 30 && maleCount > 0) {
-        ctx.font = "bold 16px Arial, sans-serif";
-        ctx.fillStyle = "#ffffff";
-        ctx.textAlign = "center";
-        ctx.fillText(
-          `${Math.round((maleCount / totalCount) * 100)}%`, 
-          x + barWidth / 2, 
-          height - margin.bottom - femaleHeight - maleHeight / 2 + 6
-        );
-      }
-    }
-    
-    // Option label with rotation for long text
-    ctx.save();
-    ctx.translate(x + barWidth / 2, height - margin.bottom + 20);
-    
-    // Rotate labels if option text is long
-    if (option.length > 10 && barWidth < 100) {
-      ctx.rotate(Math.PI / 6);
-    }
-    
-    ctx.font = "bold 16px Arial, sans-serif";
-    ctx.fillStyle = "#111827";
-    ctx.textAlign = "center";
-    ctx.fillText(option, 0, 0);
-    
-    // Add total count below option
-    ctx.font = "14px Arial, sans-serif";
-    ctx.fillStyle = "#4b5563";
-    ctx.fillText(`(n=${totalCount})`, 0, 24);
-    
-    ctx.restore();
-    
-    // Move to the next bar
-    x += barWidth + barSpacing;
-  });
-  
-  // Draw Y-axis title with rotation
-  ctx.save();
-  ctx.translate(25, height / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.font = "bold 18px Arial, sans-serif";
-  ctx.fillStyle = "#111827";
-  ctx.textAlign = "center";
-  ctx.fillText("Gender Proportion", 0, 0);
-  ctx.restore();
-  
-  // Draw X-axis title
-  ctx.font = "bold 18px Arial, sans-serif";
-  ctx.fillStyle = "#111827";
-  ctx.textAlign = "center";
-  ctx.fillText("Response Options", width / 2, height - 30);
-  
-  // Create an enhanced legend
-  const legendX = width - margin.right + 20;
-  const legendY = margin.top;
-  const legendWidth = 90;
-  const legendHeight = 130;
-  
-  // Legend background
-  ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-  ctx.strokeStyle = "#d1d5db";
-  ctx.lineWidth = 1;
-  roundRect(ctx, legendX - 10, legendY, legendWidth, legendHeight, 8, true, true);
-  
-  // Legend title
-  ctx.font = "bold 16px Arial, sans-serif";
-  ctx.fillStyle = "#111827";
-  ctx.textAlign = "left";
-  ctx.fillText("Gender", legendX, legendY + 25);
-  
-  // Legend items
-  const legendItems = [
-    { label: "Female", color: colors.Female.gradient[0], y: legendY + 55 },
-    { label: "Male", color: colors.Male.gradient[0], y: legendY + 90 }
-  ];
-  
-  legendItems.forEach(item => {
-    // Color box
-    ctx.fillStyle = item.color;
-    roundRect(ctx, legendX, item.y - 12, 20, 20, 4, true, false);
-    
-    // Label
-    ctx.font = "15px Arial, sans-serif";
-    ctx.fillStyle = "#111827";
-    ctx.textAlign = "left";
-    ctx.fillText(item.label, legendX + 30, item.y);
-  });
-  
-  // Add a note about the visualization
-  ctx.font = "italic 14px Arial, sans-serif";
-  ctx.fillStyle = "#4b5563";
-  ctx.textAlign = "center";
-  ctx.fillText("* Height of each bar represents proportion of total responses", width / 2, height - 60);
-  
-  // Add dataset information
-  ctx.font = "italic 14px Arial, sans-serif";
-  ctx.fillStyle = "#4b5563";
-  ctx.textAlign = "center";
-  ctx.fillText(`Total responses: ${totalResponses}`, width / 2, height - 80);
-  
-  // Draw a border around the chart area
-  ctx.strokeStyle = "#e5e7eb";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(margin.left, margin.top, chartWidth, chartHeight);
-  
-  // If there are no female responses, add a note
-  if (!options.some(option => optionGenderCounts[option].Female > 0)) {
-    ctx.font = "bold 16px Arial, sans-serif";
-    ctx.fillStyle = "#ef4444";
-    ctx.textAlign = "center";
-    ctx.fillText("Note: No female responses detected in this dataset", width / 2, height - 100);
-  }
-}
-// Helper function to draw rounded rectangles
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1009,6 +1053,331 @@ function createAgeStripPlot(ctx, canvas, agesByOption) {
 
 
 
+
+router.post("/rationcard", authenticateToken, async (req, res) => {
+  try {
+    const { surveyId } = req.body;
+    console.log("Ration Card analysis started");
+
+    if (!surveyId) {
+      return res.status(400).json({ error: "Survey ID is required" });
+    }
+
+    const dataset = await Result.find({ surveyid: surveyId });
+
+    if (dataset.length === 0) {
+      return res.status(404).json({ error: "No results found for this survey" });
+    }
+
+    // Extract all unique usernames from results
+    const usernames = dataset.map(result => result.user);
+
+    // Get corresponding verified users' ration card types
+    const verifiedUsers = await VerifiedUsers.find({
+      username: { $in: usernames },
+    });
+
+    // Create username-to-ration card mapping
+    const rationcardMap = {};
+    verifiedUsers.forEach(user => {
+      // Standardize ration card type to capitalized format
+      rationcardMap[user.username] = user.rationcardType ? user.rationcardType.charAt(0).toUpperCase() + user.rationcardType.slice(1).toLowerCase() : 'unknown';
+    });
+
+    // Create final dataset with option and ration card type
+    const rationCardData = dataset.map(result => ({
+      option: result.option,
+      rationcardType: rationcardMap[result.user] || 'unknown',
+    }));
+    console.log(rationCardData);
+
+    // Filter out 'unknown' ration card types
+    const filteredData = rationCardData.filter(data => data.rationcardType !== 'unknown');
+
+    // Standardize ration card types to Yellow/Pink/Blue/White format
+    const standardizedData = filteredData.map(item => ({
+      option: item.option,
+      rationcardType: item.rationcardType.toLowerCase() === 'yellow' ? 'Yellow' : 
+                      item.rationcardType.toLowerCase() === 'pink' ? 'Pink' : 
+                      item.rationcardType.toLowerCase() === 'blue' ? 'Blue' : 
+                      item.rationcardType.toLowerCase() === 'white' ? 'White' : item.rationcardType
+    }));
+    
+    console.log("Standardized data:", standardizedData);
+
+    // Count the occurrences of each option by ration card type
+    const optionRationCardCounts = {};
+    standardizedData.forEach(data => {
+      if (!optionRationCardCounts[data.option]) {
+        optionRationCardCounts[data.option] = { Yellow: 0, Pink: 0, Blue: 0, White: 0 };
+      }
+      if (data.rationcardType === 'Yellow' || data.rationcardType === 'Pink' || data.rationcardType === 'Blue' || data.rationcardType === 'White') {
+        optionRationCardCounts[data.option][data.rationcardType]++;
+      }
+    });
+    
+    console.log("Option ration card counts:", optionRationCardCounts);
+
+    // Prepare data for the bar chart
+    const options = Object.keys(optionRationCardCounts);
+    
+    // Create canvas for the bar chart
+    const canvas = createCanvas(1200, 800);
+    const ctx = canvas.getContext("2d");
+
+    // Enhanced visualization
+    createEnhancedBarChart(ctx, canvas, options, optionRationCardCounts, "rationcard");
+
+    // Convert canvas to Base64 image
+    const imageUrl = canvas.toDataURL("image/png");
+
+    res.status(200).json({
+      rationCardData: standardizedData,
+      image: imageUrl,
+    });
+
+  } catch (error) {
+    console.error("Error fetching ration card data:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
+
+
+router.post("/ward", authenticateToken, async (req, res) => {
+  try {
+    const { surveyId } = req.body;
+    console.log("Ward analysis started");
+
+    if (!surveyId) {
+      return res.status(400).json({ error: "Survey ID is required" });
+    }
+
+    const dataset = await Result.find({ surveyid: surveyId });
+
+    if (dataset.length === 0) {
+      return res.status(404).json({ error: "No results found for this survey" });
+    }
+
+    // Extract all unique usernames from results
+    const usernames = dataset.map(result => result.user);
+
+    // Get corresponding verified users' ward numbers
+    const verifiedUsers = await VerifiedUsers.find({
+      username: { $in: usernames },
+    });
+
+    // Create username-to-ward mapping
+    const wardMap = {};
+    verifiedUsers.forEach(user => {
+      wardMap[user.username] = user.wardNumber || 'unknown';
+    });
+
+    // Create final dataset with option and ward number
+    const wardData = dataset.map(result => ({
+      option: result.option,
+      wardNumber: wardMap[result.user] || 'unknown',
+    }));
+    console.log(wardData);
+
+    // Filter out 'unknown' ward numbers
+    const filteredData = wardData.filter(data => data.wardNumber !== 'unknown');
+
+    // Standardize ward numbers to integers (1 to 15)
+    const standardizedData = filteredData.map(item => ({
+      option: item.option,
+      wardNumber: parseInt(item.wardNumber), // Convert to integer
+    })).filter(item => item.wardNumber >= 1 && item.wardNumber <= 15); // Ensure ward numbers are between 1 and 15
+
+    console.log("Standardized data:", standardizedData);
+
+    // Get all unique options
+    const options = [...new Set(standardizedData.map(item => item.option))];
+    const wards = Array.from({ length: 15 }, (_, i) => i + 1); // Wards 1 to 15
+
+    // Count the occurrences of each option by ward number
+    const optionWardCounts = {};
+    options.forEach(option => {
+      optionWardCounts[option] = Array(15).fill(0); // Initialize array for 15 wards
+    });
+
+    standardizedData.forEach(data => {
+      if (data.wardNumber >= 1 && data.wardNumber <= 15) {
+        optionWardCounts[data.option][data.wardNumber - 1]++; // Increment count for the ward
+      }
+    });
+
+    console.log("Option ward counts:", optionWardCounts);
+
+    // Create canvas for the heatmap
+    const canvas = createCanvas(1200, 800);
+    const ctx = canvas.getContext("2d");
+
+    // Enhanced heatmap visualization
+    createWardHeatmap(ctx, canvas, options, wards, optionWardCounts);
+
+    // Convert canvas to Base64 image
+    const imageUrl = canvas.toDataURL("image/png");
+
+    res.status(200).json({
+      wardData: standardizedData,
+      image: imageUrl,
+    });
+
+  } catch (error) {
+    console.error("Error fetching ward data:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Function to create a heatmap visualization for ward distribution
+function createWardHeatmap(ctx, canvas, options, wards, optionWardCounts) {
+  // Canvas dimensions and margins
+  const width = canvas.width;
+  const height = canvas.height;
+  const margin = { top: 80, right: 120, bottom: 120, left: 80 };
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+
+  // Background with gradient
+  const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+  bgGradient.addColorStop(0, "#f9fafb");
+  bgGradient.addColorStop(1, "#f3f4f6");
+  ctx.fillStyle = bgGradient;
+  ctx.fillRect(0, 0, width, height);
+
+  // Draw border and shadow effect
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(10, 10, width - 20, height - 20);
+
+  // Add title with shadow
+  ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
+  ctx.shadowBlur = 5;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+  ctx.font = "bold 32px Arial, sans-serif";
+  ctx.fillStyle = "#111827";
+  ctx.textAlign = "center";
+  ctx.fillText("Ward Distribution by Response Option", width / 2, margin.top / 2 + 10);
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  // Calculate cell dimensions
+  const cellWidth = chartWidth / wards.length;
+  const cellHeight = chartHeight / options.length;
+
+  // Color scale for heatmap
+  const colorScale = (value, max) => {
+    const intensity = Math.min(value / max, 1); // Normalize value between 0 and 1
+    const red = Math.floor(255 * intensity);
+    const green = Math.floor(255 * (1 - intensity));
+    const blue = 0;
+    return `rgb(${red}, ${green}, ${blue})`;
+  };
+
+  // Find the maximum count for scaling
+  const maxCount = Math.max(...options.map(option => Math.max(...optionWardCounts[option])));
+
+  // Draw heatmap cells
+  options.forEach((option, i) => {
+    wards.forEach((ward, j) => {
+      const count = optionWardCounts[option][ward - 1] || 0;
+      const color = colorScale(count, maxCount);
+
+      // Draw cell
+      ctx.fillStyle = color;
+      ctx.fillRect(
+        margin.left + j * cellWidth,
+        margin.top + i * cellHeight,
+        cellWidth,
+        cellHeight
+      );
+
+      // Draw cell border
+      ctx.strokeStyle = "#e5e7eb";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(
+        margin.left + j * cellWidth,
+        margin.top + i * cellHeight,
+        cellWidth,
+        cellHeight
+      );
+
+      // Add count label if space allows
+      if (cellWidth > 30 && cellHeight > 30) {
+        ctx.font = "bold 14px Arial, sans-serif";
+        ctx.fillStyle = count > maxCount / 2 ? "#ffffff" : "#000000"; // Dynamic text color for contrast
+        ctx.textAlign = "center";
+        ctx.fillText(
+          count.toString(),
+          margin.left + j * cellWidth + cellWidth / 2,
+          margin.top + i * cellHeight + cellHeight / 2 + 6
+        );
+      }
+    });
+  });
+
+  // Draw X-axis labels (wards)
+  ctx.font = "bold 16px Arial, sans-serif";
+  ctx.fillStyle = "#111827";
+  ctx.textAlign = "center";
+  wards.forEach((ward, j) => {
+    ctx.fillText(
+      `Ward ${ward}`,
+      margin.left + j * cellWidth + cellWidth / 2,
+      height - margin.bottom + 30
+    );
+  });
+
+  // Draw Y-axis labels (options)
+  options.forEach((option, i) => {
+    ctx.font = "bold 16px Arial, sans-serif";
+    ctx.fillStyle = "#111827";
+    ctx.textAlign = "right";
+    ctx.fillText(
+      option,
+      margin.left - 10,
+      margin.top + i * cellHeight + cellHeight / 2 + 6
+    );
+  });
+
+  // Add a legend for the heatmap
+  const legendX = width - margin.right + 20;
+  const legendY = margin.top;
+  const legendWidth = 30;
+  const legendHeight = 200;
+
+  // Draw legend gradient
+  const legendGradient = ctx.createLinearGradient(0, legendY, 0, legendY + legendHeight);
+  legendGradient.addColorStop(0, colorScale(maxCount, maxCount));
+  legendGradient.addColorStop(1, colorScale(0, maxCount));
+  ctx.fillStyle = legendGradient;
+  ctx.fillRect(legendX, legendY, legendWidth, legendHeight);
+
+  // Draw legend labels
+  ctx.font = "14px Arial, sans-serif";
+  ctx.fillStyle = "#111827";
+  ctx.textAlign = "left";
+  ctx.fillText(maxCount.toString(), legendX + legendWidth + 10, legendY + 10);
+  ctx.fillText("0", legendX + legendWidth + 10, legendY + legendHeight - 10);
+
+  // Add a note about the visualization
+  ctx.font = "italic 14px Arial, sans-serif";
+  ctx.fillStyle = "#4b5563";
+  ctx.textAlign = "center";
+  ctx.fillText("* Color intensity represents the number of responses", width / 2, height - 60);
+
+  // Add total responses count
+  const totalResponses = Object.values(optionWardCounts).reduce((sum, counts) => sum + counts.reduce((a, b) => a + b, 0), 0);
+  ctx.font = "italic 14px Arial, sans-serif";
+  ctx.fillStyle = "#4b5563";
+  ctx.textAlign = "center";
+  ctx.fillText(`Total responses with ward data: ${totalResponses}`, width / 2, height - 80);
+}
 
 
 export default router;
