@@ -300,6 +300,7 @@ router.post('/housedetails', authenticateToken, async (req, res) => {
 router.post("/create_survey", authenticateToken, async (req, res) => {
   try {
     const { title, question, options } = req.body;
+    console.log("goverment")
    
     const creator = req.user.username;
     console.log(req.user.username)

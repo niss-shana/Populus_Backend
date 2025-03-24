@@ -6,6 +6,8 @@ import Survey from '../models/Survey.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
+import Department from '../models/department.js';
+const saltRounds = 10;
 
 const router = express.Router();
 
@@ -39,59 +41,35 @@ router.use((req, res, next) => {
 
 
 router.post('/signup', async (req, res) => {
-    try {
-      
-      console.log(req.body);
-  
-      // Hash the password
-      const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
-  
-      // Create a new resident with the hashed password
-      const reqDepartment = new Department({
-        ...req.body,
-        password: hashedPassword, // Replace the plain password with the hashed one
-      });
-  
-      await reqDepartment.save();
-  
-      console.log(reqDepartmentt);
-      const demo = await Department.find();
-      console.log(demo);
-  
-      res.status(201).json({ message: "SignUp details saved successfully" });
-    } catch (error) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-
-
-
-router.post('/login', async (req, res) => {
   try {
-    console.log(req.body);
-    const { username, password } = req.body;
-    console.log(username);
-    const user = await Department.findOne({username: username });
-    console.log(user);
-    if (!user) {
-      console.log("error");
-    return res.status(401).json({ error: 'Authentication failed' });
+    const { departmentName, username, accessAreas, email, phone } = req.body;
+
+    // Check if username already exists
+    const existingUser = await Department.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ error: "Username already exists" });
     }
-    // const passwordMatch = await bcrypt.compare(password, user.password);
-    const passwordMatch = (password === user.password);//temporary
-    console.log("Password is match:",passwordMatch);
-    if (!passwordMatch) {
-    return res.status(401).json({ error: 'Authentication failed' });
-    }
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_KEY, {
-    expiresIn: '1h',
+
+    // Hash the password (using phone as password in your example)
+    const hashedPassword = await bcrypt.hash(phone, saltRounds);
+
+    // Create new department
+    const newDepartment = new Department({
+      departmentName,
+      username,
+      accessAreas,
+      email,
+      phone,
+      password: hashedPassword,
     });
-    console.log("token:",token);
-    res.status(200).json({ success:true,Message:"Login Success",token });
-    } catch (error) {
-    res.status(500).json({ error: 'Login failed' });
-    }
+
+    await newDepartment.save();
+
+    res.status(201).json({ message: "Department created successfully" });
+  } catch (error) {
+    console.error("Signup error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 
@@ -140,42 +118,74 @@ router.get('/profile/:username', async (req, res) => {
 });
 
 
+router.post('/login', async (req, res) => {
+  try {
+    console.log(req.body);
+    const { username, password } = req.body;
+    console.log(username);
+    const user = await Department.findOne({username: username });
+    console.log(user);
+    if (!user) {
+      console.log("error");
+    return res.status(401).json({ error: 'Authentication failed' });
+    }
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    console.log("Password is match:",passwordMatch);
+    if (!passwordMatch) {
+    return res.status(401).json({ error: 'Authentication failed' });
+    }
+     const token = jwt.sign(
+          { userId: user._id, username: user.username }, // Payload
+          process.env.JWT_KEY, // Secret key
+          { expiresIn: '365d' } // Expires in 365 days
+        );
+    console.log("token:",token);
+    res.status(200).json({ success:true,Message:"Login Success",token });
+    } catch (error) {
+    res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+
+
 
 
 
 router.post("/create_survey", authenticateToken, async (req, res) => {
   try {
     const { title, question, options } = req.body;
-    console.log("department ethi")
-   
     const creator = req.user.username;
-    const access = await VerifiedUsers.find(
-      { presidentId: username },
-      { houseDetails: 1, mappedHouse: 1, wardNumber: 1, rationId:1, _id: 0 }
-    );
-
-    console.log(req.user.username)
-    const profile="local_government" // Extract username from the token
+    const profile = "local_government";
 
     // Validate input
     if (!title || !question || !options || options.length < 2 || options.length > 4) {
-      return res.status(400).json({ message: "Invalid survey data. Ensure title, question, and 2-4 options are provided." });
+      return res.status(400).json({ 
+        message: "Invalid survey data. Ensure title, question, and 2-4 options are provided." 
+      });
     }
 
-    // Create a new survey document
+    // Get access areas directly as an array
+    const department = await Department.findOne(
+      { username: creator },
+      { accessAreas: 1, _id: 0 }
+    );
 
+    if (!department) {
+      return res.status(404).json({ message: "Department not found" });
+    }
+
+    // Create a new survey with simplified access structure
     const newSurvey = new Survey({ 
       title, 
       question, 
       options, 
       creator,
-      profile 
+      profile,
+      access: department.accessAreas // Directly use the array of access areas
     });
 
-    // Save the survey to the database
     await newSurvey.save();
 
-    // Respond with success message and the created survey
     res.status(201).json({ 
       message: "Survey created successfully", 
       survey: newSurvey 
@@ -188,7 +198,6 @@ router.post("/create_survey", authenticateToken, async (req, res) => {
     });
   }
 });
-
 
 
 
