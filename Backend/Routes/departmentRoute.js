@@ -1,12 +1,41 @@
 import express  from 'express';
 import RequestUsers from '../models/requser.js';
 import VerifiedUsers from '../models/verUsers.js';
-import LocalGovernment from '../Models/locgov.js';
-import Department from '../models/department.js';
+import LocalGovernment from '../models/locgov.js';
+import Survey from '../models/Survey.js';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
+
 const router = express.Router();
 
 
+
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: "Access denied. No token provided." });
+  }
+
+  jwt.verify(token, process.env.JWT_KEY, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: "Invalid or expired token." });
+    }
+    console.log("Decoded user payload:", user); // Debugging
+    req.user = user; // Attach the user payload to the request object
+    next();
+  });
+};
+
+// Apply the middleware globally to all routes except `/login` and `/signup`
+router.use((req, res, next) => {
+  if (req.path === '/login' || req.path === '/signup' ) {
+    return next(); // Skip authentication for these routes
+  }
+  authenticateToken(req, res, next); // Apply authentication to all other routes
+});
 
 
 router.post('/signup', async (req, res) => {
@@ -109,6 +138,58 @@ router.get('/profile/:username', async (req, res) => {
     });
   }
 });
+
+
+
+
+
+router.post("/create_survey", authenticateToken, async (req, res) => {
+  try {
+    const { title, question, options } = req.body;
+    console.log("department ethi")
+   
+    const creator = req.user.username;
+    const access = await VerifiedUsers.find(
+      { presidentId: username },
+      { houseDetails: 1, mappedHouse: 1, wardNumber: 1, rationId:1, _id: 0 }
+    );
+
+    console.log(req.user.username)
+    const profile="local_government" // Extract username from the token
+
+    // Validate input
+    if (!title || !question || !options || options.length < 2 || options.length > 4) {
+      return res.status(400).json({ message: "Invalid survey data. Ensure title, question, and 2-4 options are provided." });
+    }
+
+    // Create a new survey document
+
+    const newSurvey = new Survey({ 
+      title, 
+      question, 
+      options, 
+      creator,
+      profile 
+    });
+
+    // Save the survey to the database
+    await newSurvey.save();
+
+    // Respond with success message and the created survey
+    res.status(201).json({ 
+      message: "Survey created successfully", 
+      survey: newSurvey 
+    });
+  } catch (error) {
+    console.error("Error saving survey:", error);
+    res.status(500).json({ 
+      message: "Internal server error", 
+      error: error.message 
+    });
+  }
+});
+
+
 
 
 
