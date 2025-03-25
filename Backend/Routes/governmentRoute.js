@@ -167,33 +167,66 @@ router.post('/login', async (req, res) => {
 
 router.post('/signup', async (req, res) => {
   try {
-    console.log("local government add");
+    console.log("Local government add");
     console.log(req.body);
-    
+
+    const { locality, phone, email } = req.body;
+
+    // Validate required fields
+    if (!locality || !phone || !email) {
+      return res.status(400).json({ error: "Locality, phone number, and email are required" });
+    }
+
+    // Validate phone number format (10 digits)
+    if (!/^\d{10}$/.test(phone)) {
+      return res.status(400).json({ error: "Invalid phone number format (must be 10 digits)" });
+    }
+
+    // Set username as locality and password as phone number
+    const username = locality;
+    const password = phone;
+
+    // Hash the password (phone number)
     const saltRounds = 10;
-    
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
-    
-    // Create a new resident with the hashed password
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create a new local government with the hashed password
     const reqgovernment = new LocalGovernment({
-      ...req.body,
-      password: hashedPassword // Replace the plain password with the hashed one
+      selfGovType: req.body.selfGovType, // Ensure this field is included in the request
+      locality,
+      email,
+      district,
+      username, // Set username as locality
+      password: hashedPassword, // Set password as hashed phone number
     });
-    
+
+    // Save the local government to the database
     await reqgovernment.save();
-    
-    console.log(reqgovernment);
-    const demo = await LocalGovernment.find();
-    console.log(demo);
-    
-    res.status(201).json({ message: "SignUp details saved successfully" });
+
+    console.log("Local government saved:", reqgovernment);
+
+    // Send email notification
+    const mailOptions = {
+      from: process.env.EMAIL_USER, // Sender email address
+      to: email, // Recipient email address
+      subject: 'Account Created Successfully', // Email subject
+      text: `Dear ${locality},\n\nYour account has been successfully created.\n\nUsername: ${username}\nPassword: ${phone}\n\nThank you for registering!`, // Email body
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log("Error sending email:", error);
+      } else {
+        console.log("Email sent:", info.response);
+      }
+    });
+
+    res.status(201).json({ message: "SignUp details saved successfully. Check your email for confirmation." });
   } catch (error) {
     console.log("Error during signup:", error);
     res.status(400).json({ error: error.message });
   }
 });
-
 
 
 
@@ -415,10 +448,9 @@ router.get('/profile/:username', async (req, res) => {
     // Remove sensitive information
     const userProfile = {
       _id: user._id,
-      name: user.fullName,
       username: user.username,
       email: user.email,
-      mobileNo: user.mobile,
+      mobileNo: user.phone,
       district: user.district,
       selfGovType: user.selfGovType,
       localBody: user.localBody,
