@@ -1,6 +1,7 @@
 import express from 'express';
 import Announcement from '../models/announcement.js';
-
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
 const router = express.Router();
 
@@ -97,10 +98,9 @@ router.post('/create', authenticateToken, async (req, res) => {
   try {
     console.log("create");
     console.log("Received data:", req.body);
-    console.log("Received file:", req.file);
     const { department, title, message,time,imageUri } = req.body;
     const access = req.user.username;
-    console.log(req.user.username)
+    console.log("access:",req.user.username);
 
     // Validate required fields
     if (!department || !title || !message ) {
@@ -171,14 +171,22 @@ router.delete('/delete/:postId', async (req, res) => {
 // Get All Announcements
 
 router.get('/display', async (req, res) => {
-  
   try {
     const { access } = req.query;
-    const accessArray = Array.isArray(access) ? access : [access]; // Handle single or multiple values
-    const announcements = await Announcement.find({ access: { $in: accessArray } }).sort({ createdAt: -1 });
+    console.log("Access areas received:", access); // Log received access areas
+    
+    // Ensure access is always an array (handle single value case)
+    const accessArray = Array.isArray(access) ? access : [access]; 
+    console.log(accessArray);
+    // Find announcements where 'access' contains ALL values in accessArray
+    const announcements = await Announcement.find({ 
+      access: { $in: accessArray } 
+    }).sort({ createdAt: -1 }); // Sort by newest first
+    
     res.json({ announcements });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching announcements', error });
+    console.error('Error fetching announcements:', error);
+    res.status(500).json({ message: 'Error fetching announcements', error: error.message });
   }
 });
 
@@ -224,7 +232,7 @@ router.post('/:postId/comments', async (req, res) => {
       });
     }
     const post = await Announcement.findById(req.params.postId);
-    console.log(post.reactions.comments);
+    
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
     const newComment = {
@@ -235,10 +243,11 @@ router.post('/:postId/comments', async (req, res) => {
 
     post.reactions.comments.push(newComment);
     await post.save();
-
+    console.log(post.reactions.comments);
     res.json({ message: 'Comment added', comment: newComment, reactions: post.reactions });
   } catch (error) {
-    res.status(500).json({ message: 'Error adding comment', error });
+    res.status(500).json({
+       message: 'Error adding comment', error });
   }
 });
 
