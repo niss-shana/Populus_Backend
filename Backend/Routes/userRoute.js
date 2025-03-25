@@ -472,84 +472,112 @@ router.put('/profile', authenticateToken, async (req, res) => {
 });
 
 
+
+
 router.post('/map', authenticateToken, async (req, res) => {
   try {
-    console.log("ethi")
-    const data = await VerifiedUsers.find(); // Fetch data from the database
-    console.log(data);
+    console.log("Received request for map data");
+    const userId = req.user.userId;
+    console.log("User ID:", userId);
 
-    if (!data) {
-      console.log("error");
-      return res.status(401).json({ success: false, error: "No data found" }); // Send error message if data is not found
+    // Find the user document first
+    const userdata = await VerifiedUsers.findById(userId);
+    if (!userdata) {
+      console.log("User not found");
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Find all users with the same presidentId
+    const data = await VerifiedUsers.find(
+      { presidentId: userdata.presidentId },
+      { houseDetails: 1, mappedHouse: 1, wardNumber: 1, rationId: 1, _id: 0 }
+    );
+
+    console.log("Fetched data:", data);
+
+    if (!data || data.length === 0) {
+      console.log("No data found for presidentId:", userdata.presidentId);
+      return res.status(404).json({ success: false, error: "No data found" });
     }
     
-    // Send data to the frontend with a success message
     res.status(200).json({ 
       success: true,
       message: "Data fetched successfully",
       data: data 
     });
   } catch (error) {
-    console.error(error); // Log the error for debugging
-    res.status(500).json({ success: false, error: "Internal Server Error" }); // Send error response
+    console.error("Error in /map route:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: "Internal Server Error",
+      message: error.message 
+    });
   }
 });
-
-
-
-
-
-
 router.post('/poling', authenticateToken, async (req, res) => {
   try {
-    console.log("Fetching presidentId for user");
+    console.log("Fetching available surveys for user");
 
-    // Extract the username from the authenticated user
-    const userId = req.user.username;
-    console.log("User ID:", userId);
+    const username = req.user.username;
+    console.log("Username:", username);
 
-    // Find the user in the VerifiedUsers collection
-    const user = await VerifiedUsers.findOne({ username: userId });
-
+    // Find the user
+    const user = await VerifiedUsers.findOne({ username });
     if (!user) {
-      console.log("User not found");
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    // Extract the presidentId from the user document
     const presidentId = user.presidentId;
     console.log("PresidentId:", presidentId);
 
-    // Fetch surveys created by the presidentId and are active
-    const surveys = await Survey.find({ creator: presidentId, active: true });
-    console.log(surveys)
-
-    if (!surveys || surveys.length === 0) {
-      console.log("No surveys found for the president");
-      return res.status(200).json({ 
-        success: true,
-        message: "No surveys found",
-        surveys: [] // Return an empty array if no surveys are found
-      });
-    }
-
-    // Send the surveys to the frontend with a success message
-    res.status(200).json({ 
-      success: true,
-      message: "Data fetched successfully",
-      surveys
+    // 1. Find all surveys the president has access to
+    const allSurveys = await Survey.find({
+      active: true,
+      $or: [
+        { creator: presidentId },
+        { access: presidentId }
+      ]
     });
+
+    // 2. Find all surveys this user has already voted in
+    const userResults = await Result.find({ user: username });
+    console.log("User voting history:", userResults);
+    
+    // Convert survey _ids to strings for comparison with Result.surveyid
+    const allSurveyIds = allSurveys.map(s => s._id.toString());
+    
+    // Get voted surveyids and filter to only include those that exist in current surveys
+    const votedSurveyIds = userResults
+      .map(result => result.surveyid)
+      .filter(surveyid => allSurveyIds.includes(surveyid));
+
+    console.log("Relevant voted survey IDs:", votedSurveyIds);
+
+    // 3. Filter out surveys the user has already voted in
+    const availableSurveys = allSurveys.filter(survey => 
+      !votedSurveyIds.includes(survey._id.toString())
+    );
+
+    console.log("Available surveys count:", availableSurveys.length);
+    console.log("First available survey:", availableSurveys[0]?._id);
+
+    res.status(200).json({
+      success: true,
+      message: availableSurveys.length > 0
+        ? "Available surveys fetched successfully"
+        : "No available surveys found",
+      surveys: availableSurveys
+    });
+
   } catch (error) {
-    console.error("Error:", error); // Log the error for debugging
-    res.status(500).json({ success: false, error: "Internal Server Error" }); // Send error response
+    console.error("Error in /poling route:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+      message: error.message
+    });
   }
 });
-
-
-
-
-
-
 
 router.post('/submit-survey', authenticateToken, async (req, res) => {
   try {
