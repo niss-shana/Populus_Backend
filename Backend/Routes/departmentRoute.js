@@ -70,7 +70,7 @@ router.post('/signup', async (req, res) => {
   try {
     console.log("Signup request body:", req.body);
 
-    const { departmentName, accessAreas, email, phone,district } = req.body;
+    const { departmentName, accessAreas, email, phone, district } = req.body;
 
     // Validate required fields
     if (!departmentName || !accessAreas || !email || !phone) {
@@ -87,57 +87,88 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: "At least one access area is required" });
     }
 
-    // Set username as department name and password as phone number
-    const username = departmentName;
-    const password = phone;
+    // Generate username: departmentName + random 4 digits
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const username = `${departmentName.replace(/\s+/g, '_').toLowerCase()}_${randomDigits}`;
 
-    // Hash the password (phone number)
+    // Generate random 8-character password
+    const password = Math.random().toString(36).slice(-8);
+
+    // Hash the password
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Create a new department
-    const reqDepartment = new Department({
+    const newDepartment = new Department({
       departmentName,
       district,
       username,
       password: hashedPassword,
-      accessAreas, // Ensure accessAreas is passed correctly
+      accessAreas,
       phone,
       email,
     });
 
-    // Log the department object before saving
-    console.log("Department object before saving:", reqDepartment);
-
     // Save the department to the database
-    await reqDepartment.save();
+    await newDepartment.save();
 
-    console.log("Department saved:", reqDepartment);
-
-    // Send email notification
+    // Email configuration
     const mailOptions = {
-      from: process.env.EMAIL_USER, // Sender email address
-      to: email, // Recipient email address
-      subject: 'Your Department Account Has Been Created', // Email subject
-      text: `Dear ${departmentName},\n\nYour department account has been successfully created.\n\nUsername: ${username}\nPassword: ${password}\n\nPlease keep this information secure.\n\nBest regards,\nYour Organization`, // Email body
+      from: `"Organization Admin" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `Department Account Ready: ${departmentName}`,
+      text: `Dear ${departmentName},\n\nYour department account has been successfully created.\n\n🔐 Username: ${username}\n🔐 Password: ${password}\n\n⚠️ Security Notice:\n1. Change your password immediately after first login\n2. Never share your credentials\n3. Contact ${process.env.SUPPORT_EMAIL || 'admin'} if you didn't request this\n\nBest regards,\n${process.env.ORG_NAME || 'POPULUS'} Team`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2c3e50;">Welcome, ${departmentName}!</h2>
+          <p>Your department account is ready.</p>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <p><strong>Username:</strong> ${username}</p>
+            <p><strong>Password:</strong> ${password}</p>
+          </div>
+          
+          <div style="background: #fff8e1; padding: 15px; border-left: 4px solid #ffc107;">
+            <h4 style="margin-top: 0;">Security Instructions</h4>
+            <ul>
+              <li>Change password immediately after login</li>
+              <li>Keep credentials confidential</li>
+              <li>Report suspicious activity to <a href="mailto:${process.env.SUPPORT_EMAIL || process.env.EMAIL_USER}">support</a></li>
+            </ul>
+          </div>
+          
+          <p>Best regards,<br>${process.env.ORG_NAME || 'Your Organization'} Team</p>
+        </div>`
     };
 
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.log("Error sending email:", error);
-      } else {
-        console.log("Email sent:", info.response);
+    // Send email
+    await transporter.sendMail(mailOptions);
+    console.log("Credentials email sent to:", email);
+
+    res.status(201).json({ 
+      success: true,
+      message: "Department registered successfully. Check your email for credentials.",
+      data: {
+        departmentName,
+        username,
+        email
       }
     });
 
-    res.status(201).json({ message: "SignUp details saved successfully. Check your email for credentials." });
   } catch (error) {
-    console.log("Error during signup:", error);
+    console.error("Signup error:", error);
+    
     if (error.code === 11000) {
-      // Handle duplicate key error (e.g., duplicate email or username)
-      return res.status(400).json({ error: "Email or username already exists!" });
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({ 
+        error: `${field} already exists!` 
+      });
     }
-    res.status(400).json({ error: error.message });
+    
+    res.status(500).json({ 
+      error: "Internal server error",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -359,9 +390,84 @@ router.post("/create_survey", authenticateToken, async (req, res) => {
   }
 });
 
+router.post('/update-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
 
+    // Basic validation
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Both current and new password are required' 
+      });
+    }
 
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Password must be at least 6 characters' 
+      });
+    }
 
+    // Find department
+    const department = await Department.findById(req.user.userId);
+    if (!department) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Department not found' 
+      });
+    }
+
+    // Check current password
+    const isMatch = await bcrypt.compare(currentPassword, department.password);
+    if (!isMatch) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Current password is incorrect' 
+      });
+    }
+
+    // Update password
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+    department.password = hashedPassword;
+    await department.save();
+
+    // Send email notification
+    const mailOptions = {
+      from: `"POPULUS Support" <${process.env.EMAIL_USER}>`,
+      to: department.email,
+      subject: 'Password Updated Successfully',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2c3e50;">Password Updated</h2>
+          <p>Your password for the ${department.departmentName} account has been successfully changed.</p>
+          
+          <div style="background: #fff8e1; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
+            <h4 style="margin-top: 0;">Security Notice</h4>
+            <p>If you didn't make this change, please contact our support team immediately.</p>
+          </div>
+          
+          <p>Best regards,<br>POPULUS Team</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Password updated successfully. Notification email sent.' 
+    });
+
+  } catch (error) {
+    console.error('Password update error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error updating password',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 
 
 

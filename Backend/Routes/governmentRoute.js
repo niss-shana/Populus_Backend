@@ -198,13 +198,16 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: "Invalid phone number format (must be 10 digits)" });
     }
 
-    // Set username as locality and password as phone number
-    const username = locality;
-    const password = phone;
-
-    // Hash the password (phone number)
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    // Generate username: departmentName + random 4 digits
+        const randomDigits = Math.floor(1000 + Math.random() * 9000);
+        const username = `${departmentName.replace(/\s+/g, '_').toLowerCase()}_${randomDigits}`;
+    
+        // Generate random 8-character password
+        const password = Math.random().toString(36).slice(-8);
+    
+        // Hash the password
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Create a new local government with the hashed password
     const reqgovernment = new LocalGovernment({
@@ -222,14 +225,26 @@ router.post('/signup', async (req, res) => {
 
     console.log("Local government saved:", reqgovernment);
 
-    // Send email notification
     const mailOptions = {
-      from: process.env.EMAIL_USER, // Sender email address
-      to: email, // Recipient email address
-      subject: 'Account Created Successfully', // Email subject
-      text: `Dear ${locality},\n\nYour account has been successfully created.\n\nUsername: ${username}\nPassword: ${phone}\n\nThank you for registering!`, // Email body
+      from: `"Support Team" <${process.env.EMAIL_USER}>`, // Sender with name and email
+      to: email, // Recipient email
+      subject: 'Welcome to Our Service - Account Created Successfully', // More descriptive subject
+      text: `Dear ${locality},\n\nThank you for registering with us! Your account has been successfully created.\n\nHere are your login details:\nUsername: ${username}\nPassword: ${password}\n\nFor security reasons, we recommend changing your password after your first login.\n\nIf you didn't request this account, please contact our support team immediately.\n\nBest regards,\nThe Support Team`,
+      html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2c3e50;">Welcome, ${locality}!</h2>
+        <p>Thank you for registering with us! Your account has been successfully created.</p>
+        
+        <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid #3498db; margin: 15px 0;">
+          <p><strong>Username:</strong> ${username}</p>
+          <p><strong>Password:</strong> ${password}</p>
+        </div>
+        
+        <p>For security reasons, we recommend changing your password after your first login.</p>
+        <p>If you didn't request this account, please contact our support team immediately.</p>
+        
+        <p style="margin-top: 30px;">Best regards,<br>The Support Team</p>
+      </div>`
     };
-
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
         console.log("Error sending email:", error);
