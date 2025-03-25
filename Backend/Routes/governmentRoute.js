@@ -31,7 +31,7 @@ const authenticateToken = (req, res, next) => {
 
 // Replace the global middleware with:
 router.use((req, res, next) => {
-  const publicRoutes = ['/login', '/signup', '/verify-user'];
+  const publicRoutes = ['/login', '/signup', '/verify-user','/users'];
   if (publicRoutes.some(route => req.path.startsWith(route))) {
     return next();
   }
