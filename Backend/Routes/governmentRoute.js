@@ -29,14 +29,14 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Apply the middleware globally to all routes except `/login` and `/signup`
+// Replace the global middleware with:
 router.use((req, res, next) => {
-  if (req.path === '/login' || req.path === '/signup'|| '/verify-user' ||'/map'||'/housedetails' ) {
-    return next(); // Skip authentication for these routes
+  const publicRoutes = ['/login', '/signup', '/verify-user'];
+  if (publicRoutes.some(route => req.path.startsWith(route))) {
+    return next();
   }
-  authenticateToken(req, res, next); // Apply authentication to all other routes
+  authenticateToken(req, res, next);
 });
-
 
 router.get('/users', async (req, res) => {
   try {
@@ -93,25 +93,41 @@ router.post('/adding_residents', async (req, res) => {
 
 
 
-
 router.post('/verify-user', async (req, res) => {
   try {
-    const { _id, ...userDetails } = req.body; // Extract user details
-    userDetails.presidentId = req.body.presidentId || 'unknown'; // Add presidentId
+    const { _id, ...userDetails } = req.body;
+    userDetails.presidentId = req.body.presidentId || 'unknown';
 
+    // Step 1: Attempt to save the verified user
     const verifiedUser = new VerifiedUsers(userDetails);
-    await verifiedUser.save(); // Save to verified users collection
+    const savedUser = await verifiedUser.save();
+    console.log( savedUser)
+    console.log( "user keri")
 
-    // Remove the user from unverified collection
-    await RequestUsers.findByIdAndDelete(_id);
+    // Step 2: Check if the save was successful (optional, since `save()` throws on failure)
+    if (!savedUser) {
+      throw new Error("Failed to save verified user.");
+    }
 
-    res.status(200).json({ message: 'User verified successfully.' });
+    // Step 3: Only delete from unverified if the above succeeded
+    const deletionResult = await RequestUsers.findByIdAndDelete(_id);
+    if (!deletionResult) {
+      console.warn("User was verified, but deletion from unverified failed.");
+      // You might want to handle this case (e.g., log it or retry)
+    }
+
+    res.status(200).json({ 
+      message: 'User verified successfully.',
+      verifiedUser: savedUser
+    });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: error.message,
+      message: 'Failed to verify user. No changes were made.'
+    });
   }
 });
-
-
 
 
 
@@ -167,27 +183,62 @@ router.post('/login', async (req, res) => {
 
 router.post('/signup', async (req, res) => {
   try {
-    console.log("local government add");
+    console.log("Local government add");
     console.log(req.body);
-    
+
+    const { locality, phone, email,district } = req.body;
+
+    // Validate required fields
+    if (!locality || !phone || !email) {
+      return res.status(400).json({ error: "Locality, phone number, and email are required" });
+    }
+
+    // Validate phone number format (10 digits)
+    if (!/^\d{10}$/.test(phone)) {
+      return res.status(400).json({ error: "Invalid phone number format (must be 10 digits)" });
+    }
+
+    // Set username as locality and password as phone number
+    const username = locality;
+    const password = phone;
+
+    // Hash the password (phone number)
     const saltRounds = 10;
-    
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
-    
-    // Create a new resident with the hashed password
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create a new local government with the hashed password
     const reqgovernment = new LocalGovernment({
-      ...req.body,
-      password: hashedPassword // Replace the plain password with the hashed one
+      selfGovType: req.body.selfGovType, // Ensure this field is included in the request
+      locality,
+      email,
+      district,
+      phone,
+      username, // Set username as locality
+      password: hashedPassword, // Set password as hashed phone number
     });
-    
+
+    // Save the local government to the database
     await reqgovernment.save();
-    
-    console.log(reqgovernment);
-    const demo = await LocalGovernment.find();
-    console.log(demo);
-    
-    res.status(201).json({ message: "SignUp details saved successfully" });
+
+    console.log("Local government saved:", reqgovernment);
+
+    // Send email notification
+    const mailOptions = {
+      from: process.env.EMAIL_USER, // Sender email address
+      to: email, // Recipient email address
+      subject: 'Account Created Successfully', // Email subject
+      text: `Dear ${locality},\n\nYour account has been successfully created.\n\nUsername: ${username}\nPassword: ${phone}\n\nThank you for registering!`, // Email body
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.log("Error sending email:", error);
+      } else {
+        console.log("Email sent:", info.response);
+      }
+    });
+
+    res.status(201).json({ message: "SignUp details saved successfully. Check your email for confirmation." });
   } catch (error) {
     console.log("Error during signup:", error);
     res.status(400).json({ error: error.message });
@@ -211,15 +262,22 @@ router.post('/signup', async (req, res) => {
 
 
 
-router.post('/map', async (req, res) => {
+router.post('/map', authenticateToken, async (req, res) => {
   try {
-    console.log("ethi")
-    const data = await VerifiedUsers.find(); // Fetch data from the database
+    const username = req.user.username;
+    console.log("Fetching map data for president:", username);
+    
+    // Fetch only the required fields where presidentId matches the username
+    const data = await VerifiedUsers.find(
+      { presidentId: username },
+      { houseDetails: 1, mappedHouse: 1, wardNumber: 1, rationId:1, _id: 0 }
+    );
+    
     console.log(data);
 
-    if (!data) {
-      console.log("error");
-      return res.status(401).json({ success: false, error: "No data found" }); // Send error message if data is not found
+    if (!data || data.length === 0) {
+      console.log("No data found for president:", username);
+      return res.status(404).json({ success: false, error: "No data found" });
     }
     
     // Send data to the frontend with a success message
@@ -229,8 +287,8 @@ router.post('/map', async (req, res) => {
       data: data 
     });
   } catch (error) {
-    console.error(error); // Log the error for debugging
-    res.status(500).json({ success: false, error: "Internal Server Error" }); // Send error response
+    console.error("Error in /map route:", error);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
   }
 });
 
@@ -239,22 +297,22 @@ router.post('/map', async (req, res) => {
 
 
 
-router.post('/housedetails', async (req, res) => {
+router.post('/housedetails', authenticateToken, async (req, res) => {
   try {
     console.log("labeeee")
     console.log(req.body)
     console.log("hi")
     // Retrieve houseDetails from the request body
-    const { houseDetails } = req.body;
+    const { rationId } = req.body;
     console.log("hi")
 
     // Ensure houseDetails is provided
-    if (!houseDetails) {
+    if (!rationId) {
       return res.status(400).json({ error: 'houseDetails is required' });
     }
 
     // Query the database for the house details
-    const data = await VerifiedUsers.find({ houseDetails }).select('name dateOfBirth gender houseDetails place locality district mobileNo aadhaarNo rationId');
+    const data = await VerifiedUsers.find({ rationId }).select('name dateOfBirth gender mobileNo aadhaarNo occupation photo income  ');
     console.log(data)
     
 
@@ -277,6 +335,7 @@ router.post('/housedetails', async (req, res) => {
 router.post("/create_survey", authenticateToken, async (req, res) => {
   try {
     const { title, question, options } = req.body;
+    console.log("goverment")
    
     const creator = req.user.username;
     console.log(req.user.username)
@@ -396,47 +455,51 @@ router.post("/completesurvey", authenticateToken, async (req, res) => {
 
 
 
-// GET /government/profile/:username
-router.get('/profile/:username', async (req, res) => {
+router.get('/profile/:username', authenticateToken, async (req, res) => {
   try {
     const { username } = req.params;
+    console.log(`Fetching profile for username: ${username}`);
 
-    // Find user by username
-    const user = await LocalGovernment.findOne({ username });
-    console.log(user)
+    // Case-insensitive search and proper field selection
+    const user = await LocalGovernment.findOne({ 
+      username: { $regex: new RegExp(`^${username}$`, 'i') }
+    }).select('-password -__v -tokens');
 
     if (!user) {
+      console.log(`User not found: ${username}`);
       return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
+        success: false,
+        message: 'Government user not found'
       });
     }
 
-    // Remove sensitive information
-    const userProfile = {
+    console.log('Found user:', user);
+    
+    const profileData = {
       _id: user._id,
-      name: user.fullName,
-      username: user.username,
-      email: user.email,
-      mobileNo: user.mobile,
-      district: user.district,
       selfGovType: user.selfGovType,
-      localBody: user.localBody,
-      photo: user.photo
+      district: user.district,
+      locality: user.locality,
+      email: user.email,
+      phone: user.phone,
+      username: user.username,  
+      createdAt: user.createdAt
     };
 
-    res.json(userProfile);
+    res.status(200).json({
+      success: true,
+      data: profileData
+    });
+
   } catch (error) {
-    console.error('Profile fetch error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error fetching profile data' 
+    console.error('Profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching government profile',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
-
-
-
 
 
 
