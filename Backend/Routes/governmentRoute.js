@@ -176,7 +176,84 @@ router.post('/login', async (req, res) => {
     }
 });
 
+router.post('/update-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    console.log(req.body);
+    // Basic validation
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Both current and new password are required' 
+      });
+    }
 
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Password must be at least 6 characters' 
+      });
+    }
+
+    // Find local government
+    const localGovernment = await LocalGovernment.findById(req.user.userId);
+    if (!localGovernment) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Local government not found' 
+      });
+    }
+
+    // Check current password
+    const isMatch = await bcrypt.compare(currentPassword, localGovernment.password);
+    if (!isMatch) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Current password is incorrect' 
+      });
+    }
+
+    // Update password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    localGovernment.password = hashedPassword;
+    await localGovernment.save();
+
+    // Send email notification
+    const mailOptions = {
+      from: `"POPULUS Support" <${process.env.EMAIL_USER}>`,
+      to: localGovernment.email,
+      subject: 'Password Updated Successfully',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2c3e50;">Password Updated</h2>
+          <p>Your password for the ${localGovernment.locality} local government account has been successfully changed.</p>
+          
+          <div style="background: #fff8e1; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
+            <h4 style="margin-top: 0;">Security Notice</h4>
+            <p>If you didn't make this change, please contact our support team immediately.</p>
+          </div>
+          
+          <p>Best regards,<br>POPULUS Team</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Password updated successfully. Notification email sent.' 
+    });
+
+  } catch (error) {
+    console.error('Password update error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error updating password',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 
 
 
