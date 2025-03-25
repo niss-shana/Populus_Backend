@@ -314,7 +314,8 @@ router.get('/profile/:userId', async (req, res) => {
 router.post("/create_survey", authenticateToken, async (req, res) => {
   try {
     const { title, question, options } = req.body;
-    const creator = req.user.username;
+    const creator = req.user.userId;
+    console.log(creator)
     const profile = "local_government";
 
     // Validate input
@@ -326,7 +327,7 @@ router.post("/create_survey", authenticateToken, async (req, res) => {
 
     // Get access areas directly as an array
     const department = await Department.findOne(
-      { username: creator },
+      { _id: creator },
       { accessAreas: 1, _id: 0 }
     );
 
@@ -358,6 +359,132 @@ router.post("/create_survey", authenticateToken, async (req, res) => {
     });
   }
 });
+
+
+
+
+
+
+
+router.post("/mysurvey", authenticateToken, async (req, res) => {
+  try {
+    console.log(" fectingdepartment survey");
+    const userId = req.user.userId;
+    const surveys = await Survey.find({ creator: userId });
+    console.log(surveys)
+
+    if (!surveys || surveys.length === 0) {
+      console.log("No surveys found for the president");
+      return res.status(200).json({ 
+        success: true,
+        message: "No surveys found",
+        surveys: [] // Return an empty array if no surveys are found
+      });
+    }
+
+    // Send the surveys to the frontend with a success message
+    res.status(200).json({ 
+      success: true,
+      message: "Data fetched successfully",
+      surveys
+    });
+  } catch (error) {
+    console.error("Error:", error); // Log the error for debugging
+    res.status(500).json({ success: false, error: "Internal Server Error" }); // Send error response
+  }
+});
+
+
+
+
+
+
+
+
+router.post('/map', authenticateToken, async (req, res) => {
+  try {
+    const username = req.user.userId;
+    console.log("Fetching map data for officer:", username);
+
+    const access = await Department.findOne(
+      { _id: username },
+      { accessAreas: 1, _id: 0 }
+    );
+
+    if (!access || !access.accessAreas || access.accessAreas.length === 0) {
+      console.log("No access areas found for officer:", username);
+      return res.status(404).json({ success: false, error: "No access areas found" });
+    }
+
+    console.log(access);
+
+    // Fetch only the required fields where presidentId matches any value in accessAreas
+    const data = await VerifiedUsers.find(
+      { presidentId: { $in: access.accessAreas } }, 
+      { houseDetails: 1, mappedHouse: 1, wardNumber: 1, rationId: 1, _id: 0 }
+    );
+
+    console.log(data);
+
+    if (!data || data.length === 0) {
+      console.log("No data found for president:", username);
+      return res.status(404).json({ success: false, error: "No data found" });
+    }
+
+    // Send data to the frontend with a success message
+    res.status(200).json({ 
+      success: true,
+      message: "Data fetched successfully",
+      data: data 
+    });
+  } catch (error) {
+    console.error("Error in /map route:", error);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
+  }
+});
+
+
+
+
+
+
+router.post('/housedetails', authenticateToken, async (req, res) => {
+  try {
+    console.log("labeeee")
+    console.log(req.body)
+    console.log("hi")
+    // Retrieve houseDetails from the request body
+    const { rationId } = req.body;
+    console.log("hi")
+
+    // Ensure houseDetails is provided
+    if (!rationId) {
+      return res.status(400).json({ error: 'houseDetails is required' });
+    }
+
+    // Query the database for the house details
+    const data = await VerifiedUsers.find({ rationId }).select('name dateOfBirth gender mobileNo aadhaarNo occupation photo income  ');
+    console.log(data)
+    
+
+    // If no data is found, respond accordingly
+    if (data.length === 0) {
+      return res.status(404).json({ error: 'No house details found' });
+    }
+
+    // Send the data as a response
+    res.status(200).json({ data });
+  } catch (error) {
+    // Handle errors
+    console.error('Error fetching house details:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
+
+
+
 
 
 
