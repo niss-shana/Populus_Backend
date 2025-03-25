@@ -72,29 +72,64 @@ const transporter = nodemailer.createTransport({
 
 router.post('/adding_residents', async (req, res) => {
   try {
-    const { _id, ...userDetails } = req.body; // Extract user details
-    userDetails.presidentId = req.body.presidentId || 'unknown'; // Add presidentId
+    const { _id, email, aadhaarNo, rationId, mobileNo, ...userDetails } = req.body;
 
-    // Save to verified users collection
-    const verifiedUser = new VerifiedUsers(userDetails);
+    // Check if user already exists by any unique identifier
+    const existingUser = await VerifiedUsers.findOne({
+      $or: [
+        { email: email },
+        { aadhaarNo: aadhaarNo },
+        { rationId: rationId },
+        { mobileNo: mobileNo }
+      ]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ 
+        error: 'User already exists',
+        existingUser: {
+          _id: existingUser._id,
+          name: existingUser.name,
+          email: existingUser.email
+        }
+      });
+    }
+
+    // Add presidentId if not provided
+    userDetails.presidentId = req.body.presidentId || 'unknown';
+    
+    // Create new verified user
+    const verifiedUser = new VerifiedUsers({
+      email,
+      aadhaarNo,
+      rationId,
+      mobileNo,
+      ...userDetails
+    });
+
     await verifiedUser.save();
 
-
-
-    // Send email with username and password
+    // Send email with credentials
     const mailOptions = {
-      from: process.env.EMAIL_USER, // Sender email
-      to: userDetails.email, // Recipient email
-      subject: 'Your Account Has Been Verified', // Email subject
-      text: `Dear ${userDetails.name},\n\nYour account has been verified. Here are your login credentials:\n\nUsername: ${userDetails.username}\nPassword: ${userDetails.password}\n\nPlease keep this information secure.\n\nBest regards,\nYour Organization`, // Email body
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Your Account Has Been Verified',
+      text: `Dear ${userDetails.name},\n\nYour account has been verified. Here are your login credentials:\n\nUsername: ${userDetails.username}\nPassword: ${userDetails.password}\n\nPlease keep this information secure.\n\nBest regards,\nYour Organization`,
     };
 
-    // Send the email
     await transporter.sendMail(mailOptions);
 
-    res.status(200).json({ message: 'User verified successfully and email sent.' });
+    res.status(201).json({ 
+      message: 'User verified successfully and email sent.',
+      userId: verifiedUser._id 
+    });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error in adding resident:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
   }
 });
 
