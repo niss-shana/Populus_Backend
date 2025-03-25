@@ -70,7 +70,7 @@ router.post('/signup', async (req, res) => {
   try {
     console.log("Signup request body:", req.body);
 
-    const { departmentName, accessAreas, email, phone,district } = req.body;
+    const { departmentName, accessAreas, email, phone, district } = req.body;
 
     // Validate required fields
     if (!departmentName || !accessAreas || !email || !phone) {
@@ -87,57 +87,88 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: "At least one access area is required" });
     }
 
-    // Set username as department name and password as phone number
-    const username = departmentName;
-    const password = phone;
+    // Generate username: departmentName + random 4 digits
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const username = `${departmentName.replace(/\s+/g, '_').toLowerCase()}_${randomDigits}`;
 
-    // Hash the password (phone number)
+    // Generate random 8-character password
+    const password = Math.random().toString(36).slice(-8);
+
+    // Hash the password
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Create a new department
-    const reqDepartment = new Department({
+    const newDepartment = new Department({
       departmentName,
       district,
       username,
       password: hashedPassword,
-      accessAreas, // Ensure accessAreas is passed correctly
+      accessAreas,
       phone,
       email,
     });
 
-    // Log the department object before saving
-    console.log("Department object before saving:", reqDepartment);
-
     // Save the department to the database
-    await reqDepartment.save();
+    await newDepartment.save();
 
-    console.log("Department saved:", reqDepartment);
-
-    // Send email notification
+    // Email configuration
     const mailOptions = {
-      from: process.env.EMAIL_USER, // Sender email address
-      to: email, // Recipient email address
-      subject: 'Your Department Account Has Been Created', // Email subject
-      text: `Dear ${departmentName},\n\nYour department account has been successfully created.\n\nUsername: ${username}\nPassword: ${password}\n\nPlease keep this information secure.\n\nBest regards,\nYour Organization`, // Email body
+      from: `"Organization Admin" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `Department Account Ready: ${departmentName}`,
+      text: `Dear ${departmentName},\n\nYour department account has been successfully created.\n\n🔐 Username: ${username}\n🔐 Password: ${password}\n\n⚠️ Security Notice:\n1. Change your password immediately after first login\n2. Never share your credentials\n3. Contact ${process.env.SUPPORT_EMAIL || 'admin'} if you didn't request this\n\nBest regards,\n${process.env.ORG_NAME || 'POPULUS'} Team`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2c3e50;">Welcome, ${departmentName}!</h2>
+          <p>Your department account is ready.</p>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <p><strong>Username:</strong> ${username}</p>
+            <p><strong>Password:</strong> ${password}</p>
+          </div>
+          
+          <div style="background: #fff8e1; padding: 15px; border-left: 4px solid #ffc107;">
+            <h4 style="margin-top: 0;">Security Instructions</h4>
+            <ul>
+              <li>Change password immediately after login</li>
+              <li>Keep credentials confidential</li>
+              <li>Report suspicious activity to <a href="mailto:${process.env.SUPPORT_EMAIL || process.env.EMAIL_USER}">support</a></li>
+            </ul>
+          </div>
+          
+          <p>Best regards,<br>${process.env.ORG_NAME || 'Your Organization'} Team</p>
+        </div>`
     };
 
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.log("Error sending email:", error);
-      } else {
-        console.log("Email sent:", info.response);
+    // Send email
+    await transporter.sendMail(mailOptions);
+    console.log("Credentials email sent to:", email);
+
+    res.status(201).json({ 
+      success: true,
+      message: "Department registered successfully. Check your email for credentials.",
+      data: {
+        departmentName,
+        username,
+        email
       }
     });
 
-    res.status(201).json({ message: "SignUp details saved successfully. Check your email for credentials." });
   } catch (error) {
-    console.log("Error during signup:", error);
+    console.error("Signup error:", error);
+    
     if (error.code === 11000) {
-      // Handle duplicate key error (e.g., duplicate email or username)
-      return res.status(400).json({ error: "Email or username already exists!" });
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({ 
+        error: `${field} already exists!` 
+      });
     }
-    res.status(400).json({ error: error.message });
+    
+    res.status(500).json({ 
+      error: "Internal server error",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -314,7 +345,8 @@ router.get('/profile/:userId', async (req, res) => {
 router.post("/create_survey", authenticateToken, async (req, res) => {
   try {
     const { title, question, options } = req.body;
-    const creator = req.user.username;
+    const creator = req.user.userId;
+    console.log(creator)
     const profile = "local_government";
 
     // Validate input
@@ -326,7 +358,7 @@ router.post("/create_survey", authenticateToken, async (req, res) => {
 
     // Get access areas directly as an array
     const department = await Department.findOne(
-      { username: creator },
+      { _id: creator },
       { accessAreas: 1, _id: 0 }
     );
 
@@ -358,6 +390,207 @@ router.post("/create_survey", authenticateToken, async (req, res) => {
     });
   }
 });
+
+router.post('/update-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Basic validation
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Both current and new password are required' 
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Password must be at least 6 characters' 
+      });
+    }
+
+    // Find department
+    const department = await Department.findById(req.user.userId);
+    if (!department) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Department not found' 
+      });
+    }
+
+    // Check current password
+    const isMatch = await bcrypt.compare(currentPassword, department.password);
+    if (!isMatch) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Current password is incorrect' 
+      });
+    }
+
+    // Update password
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+    department.password = hashedPassword;
+    await department.save();
+
+    // Send email notification
+    const mailOptions = {
+      from: `"POPULUS Support" <${process.env.EMAIL_USER}>`,
+      to: department.email,
+      subject: 'Password Updated Successfully',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2c3e50;">Password Updated</h2>
+          <p>Your password for the ${department.departmentName} account has been successfully changed.</p>
+          
+          <div style="background: #fff8e1; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
+            <h4 style="margin-top: 0;">Security Notice</h4>
+            <p>If you didn't make this change, please contact our support team immediately.</p>
+          </div>
+          
+          <p>Best regards,<br>POPULUS Team</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Password updated successfully. Notification email sent.' 
+    });
+
+  } catch (error) {
+    console.error('Password update error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error updating password',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+
+router.post("/mysurvey", authenticateToken, async (req, res) => {
+  try {
+    console.log(" fectingdepartment survey");
+    const userId = req.user.userId;
+    const surveys = await Survey.find({ creator: userId });
+    console.log(surveys)
+
+    if (!surveys || surveys.length === 0) {
+      console.log("No surveys found for the president");
+      return res.status(200).json({ 
+        success: true,
+        message: "No surveys found",
+        surveys: [] // Return an empty array if no surveys are found
+      });
+    }
+
+    // Send the surveys to the frontend with a success message
+    res.status(200).json({ 
+      success: true,
+      message: "Data fetched successfully",
+      surveys
+    });
+  } catch (error) {
+    console.error("Error:", error); // Log the error for debugging
+    res.status(500).json({ success: false, error: "Internal Server Error" }); // Send error response
+  }
+});
+
+
+
+
+
+
+
+
+router.post('/map', authenticateToken, async (req, res) => {
+  try {
+    const username = req.user.userId;
+    console.log("Fetching map data for officer:", username);
+
+    const access = await Department.findOne(
+      { _id: username },
+      { accessAreas: 1, _id: 0 }
+    );
+
+    if (!access || !access.accessAreas || access.accessAreas.length === 0) {
+      console.log("No access areas found for officer:", username);
+      return res.status(404).json({ success: false, error: "No access areas found" });
+    }
+
+    console.log(access);
+
+    // Fetch only the required fields where presidentId matches any value in accessAreas
+    const data = await VerifiedUsers.find(
+      { presidentId: { $in: access.accessAreas } }, 
+      { houseDetails: 1, mappedHouse: 1, wardNumber: 1, rationId: 1, _id: 0 }
+    );
+
+    console.log(data);
+
+    if (!data || data.length === 0) {
+      console.log("No data found for president:", username);
+      return res.status(404).json({ success: false, error: "No data found" });
+    }
+
+    // Send data to the frontend with a success message
+    res.status(200).json({ 
+      success: true,
+      message: "Data fetched successfully",
+      data: data 
+    });
+  } catch (error) {
+    console.error("Error in /map route:", error);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
+  }
+});
+
+
+
+
+
+
+router.post('/housedetails', authenticateToken, async (req, res) => {
+  try {
+    console.log("labeeee")
+    console.log(req.body)
+    console.log("hi")
+    // Retrieve houseDetails from the request body
+    const { rationId } = req.body;
+    console.log("hi")
+
+    // Ensure houseDetails is provided
+    if (!rationId) {
+      return res.status(400).json({ error: 'houseDetails is required' });
+    }
+
+    // Query the database for the house details
+    const data = await VerifiedUsers.find({ rationId }).select('name dateOfBirth gender mobileNo aadhaarNo occupation photo income  ');
+    console.log(data)
+    
+
+    // If no data is found, respond accordingly
+    if (data.length === 0) {
+      return res.status(404).json({ error: 'No house details found' });
+    }
+
+    // Send the data as a response
+    res.status(200).json({ data });
+  } catch (error) {
+    // Handle errors
+    console.error('Error fetching house details:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
+
+
+
 
 
 
