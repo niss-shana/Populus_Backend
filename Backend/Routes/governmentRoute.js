@@ -79,10 +79,10 @@ const transporter = nodemailer.createTransport({
  
 
 
-router.post('/adding_residents', async (req, res) => {
+router.post('/adding_residents', authenticateToken, async (req, res) => {
   try {
     const { _id, email, aadhaarNo, rationId, mobileNo, ...userDetails } = req.body;
-
+    console.log(req.body);
     // Check if user already exists by any unique identifier
     const existingUser = await VerifiedUsers.findOne({
       $or: [
@@ -105,14 +105,15 @@ router.post('/adding_residents', async (req, res) => {
     }
 
     // Add presidentId if not provided
-    userDetails.presidentId = req.body.presidentId || 'unknown';
-    
+    userDetails.presidentId = req.user.username || 'unknown';
+    console.log(req.user.username);
     // Create new verified user
     const verifiedUser = new VerifiedUsers({
       email,
       aadhaarNo,
       rationId,
       mobileNo,
+      houseDetails: userDetails.houseDetails || 'Not specified', // Add a default value
       ...userDetails
     });
 
