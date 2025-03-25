@@ -30,20 +30,27 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Replace the global middleware with:
-router.use((req, res, next) => {
-  const publicRoutes = ['/login', '/signup', '/verify-user'];
-  if (publicRoutes.some(route => req.path.startsWith(route))) {
-    return next();
-  }
-  authenticateToken(req, res, next);
-});
-
 router.get('/users', async (req, res) => {
   try {
-    const users = await RequestUsers.find();
-    if (!users || users.length === 0) {
-      return res.status(404).json({ message: 'No users found' });
+    // Try to get the current username from request body or headers
+    const currentUsername = req.body.currentUsername || req.headers['x-username'];
+
+    // If no username is provided, return all users (or you can choose to return an error)
+    if (!currentUsername) {
+      return res.status(400).json({ message: 'Current username is required' });
     }
+
+    // Find users whose locality matches the current username
+    const users = await RequestUsers.find({ 
+      locality: currentUsername 
+    });
+
+    // Check if any users were found
+    if (!users || users.length === 0) {
+      console.log("no users found")
+    }
+
+    // Return the found users
     res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
