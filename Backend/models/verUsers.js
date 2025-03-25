@@ -25,7 +25,6 @@ const residentSchema = new mongoose.Schema({
   presidentId: {  type: String},
   isOwnerHome: {type: String}, 
   occupation:{type:String}, 
-  wardNumber: { type: String },
   rationcardType:{type:String}, 
 });
 

@@ -31,7 +31,6 @@ const surveySchema = new mongoose.Schema({
     type: Boolean, 
     default: true // Set default value here
   },
-  access: [{ type: String }],
   createdAt: { 
     type: Date, 
     default: Date.now 

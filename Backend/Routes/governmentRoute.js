@@ -29,14 +29,14 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Replace the global middleware with:
+// Apply the middleware globally to all routes except `/login` and `/signup`
 router.use((req, res, next) => {
-  const publicRoutes = ['/login', '/signup', '/verify-user'];
-  if (publicRoutes.some(route => req.path.startsWith(route))) {
-    return next();
+  if (req.path === '/login' || req.path === '/signup'|| '/verify-user' ||'/map'||'/housedetails' ) {
+    return next(); // Skip authentication for these routes
   }
-  authenticateToken(req, res, next);
+  authenticateToken(req, res, next); // Apply authentication to all other routes
 });
+
 
 router.get('/users', async (req, res) => {
   try {
@@ -93,41 +93,25 @@ router.post('/adding_residents', async (req, res) => {
 
 
 
+
 router.post('/verify-user', async (req, res) => {
   try {
-    const { _id, ...userDetails } = req.body;
-    userDetails.presidentId = req.body.presidentId || 'unknown';
+    const { _id, ...userDetails } = req.body; // Extract user details
+    userDetails.presidentId = req.body.presidentId || 'unknown'; // Add presidentId
 
-    // Step 1: Attempt to save the verified user
     const verifiedUser = new VerifiedUsers(userDetails);
-    const savedUser = await verifiedUser.save();
-    console.log( savedUser)
-    console.log( "user keri")
+    await verifiedUser.save(); // Save to verified users collection
 
-    // Step 2: Check if the save was successful (optional, since `save()` throws on failure)
-    if (!savedUser) {
-      throw new Error("Failed to save verified user.");
-    }
+    // Remove the user from unverified collection
+    await RequestUsers.findByIdAndDelete(_id);
 
-    // Step 3: Only delete from unverified if the above succeeded
-    const deletionResult = await RequestUsers.findByIdAndDelete(_id);
-    if (!deletionResult) {
-      console.warn("User was verified, but deletion from unverified failed.");
-      // You might want to handle this case (e.g., log it or retry)
-    }
-
-    res.status(200).json({ 
-      message: 'User verified successfully.',
-      verifiedUser: savedUser
-    });
-
+    res.status(200).json({ message: 'User verified successfully.' });
   } catch (error) {
-    res.status(500).json({ 
-      error: error.message,
-      message: 'Failed to verify user. No changes were made.'
-    });
+    res.status(500).json({ error: error.message });
   }
 });
+
+
 
 
 
@@ -183,62 +167,27 @@ router.post('/login', async (req, res) => {
 
 router.post('/signup', async (req, res) => {
   try {
-    console.log("Local government add");
+    console.log("local government add");
     console.log(req.body);
-
-    const { locality, phone, email,district } = req.body;
-
-    // Validate required fields
-    if (!locality || !phone || !email) {
-      return res.status(400).json({ error: "Locality, phone number, and email are required" });
-    }
-
-    // Validate phone number format (10 digits)
-    if (!/^\d{10}$/.test(phone)) {
-      return res.status(400).json({ error: "Invalid phone number format (must be 10 digits)" });
-    }
-
-    // Set username as locality and password as phone number
-    const username = locality;
-    const password = phone;
-
-    // Hash the password (phone number)
+    
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Create a new local government with the hashed password
+    
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
+    
+    // Create a new resident with the hashed password
     const reqgovernment = new LocalGovernment({
-      selfGovType: req.body.selfGovType, // Ensure this field is included in the request
-      locality,
-      email,
-      district,
-      phone,
-      username, // Set username as locality
-      password: hashedPassword, // Set password as hashed phone number
+      ...req.body,
+      password: hashedPassword // Replace the plain password with the hashed one
     });
-
-    // Save the local government to the database
+    
     await reqgovernment.save();
-
-    console.log("Local government saved:", reqgovernment);
-
-    // Send email notification
-    const mailOptions = {
-      from: process.env.EMAIL_USER, // Sender email address
-      to: email, // Recipient email address
-      subject: 'Account Created Successfully', // Email subject
-      text: `Dear ${locality},\n\nYour account has been successfully created.\n\nUsername: ${username}\nPassword: ${phone}\n\nThank you for registering!`, // Email body
-    };
-
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.log("Error sending email:", error);
-      } else {
-        console.log("Email sent:", info.response);
-      }
-    });
-
-    res.status(201).json({ message: "SignUp details saved successfully. Check your email for confirmation." });
+    
+    console.log(reqgovernment);
+    const demo = await LocalGovernment.find();
+    console.log(demo);
+    
+    res.status(201).json({ message: "SignUp details saved successfully" });
   } catch (error) {
     console.log("Error during signup:", error);
     res.status(400).json({ error: error.message });
@@ -262,22 +211,15 @@ router.post('/signup', async (req, res) => {
 
 
 
-router.post('/map', authenticateToken, async (req, res) => {
+router.post('/map', async (req, res) => {
   try {
-    const username = req.user.username;
-    console.log("Fetching map data for president:", username);
-    
-    // Fetch only the required fields where presidentId matches the username
-    const data = await VerifiedUsers.find(
-      { presidentId: username },
-      { houseDetails: 1, mappedHouse: 1, wardNumber: 1, rationId:1, _id: 0 }
-    );
-    
+    console.log("ethi")
+    const data = await VerifiedUsers.find(); // Fetch data from the database
     console.log(data);
 
-    if (!data || data.length === 0) {
-      console.log("No data found for president:", username);
-      return res.status(404).json({ success: false, error: "No data found" });
+    if (!data) {
+      console.log("error");
+      return res.status(401).json({ success: false, error: "No data found" }); // Send error message if data is not found
     }
     
     // Send data to the frontend with a success message
@@ -287,8 +229,8 @@ router.post('/map', authenticateToken, async (req, res) => {
       data: data 
     });
   } catch (error) {
-    console.error("Error in /map route:", error);
-    res.status(500).json({ success: false, error: "Internal Server Error" });
+    console.error(error); // Log the error for debugging
+    res.status(500).json({ success: false, error: "Internal Server Error" }); // Send error response
   }
 });
 
@@ -297,22 +239,22 @@ router.post('/map', authenticateToken, async (req, res) => {
 
 
 
-router.post('/housedetails', authenticateToken, async (req, res) => {
+router.post('/housedetails', async (req, res) => {
   try {
     console.log("labeeee")
     console.log(req.body)
     console.log("hi")
     // Retrieve houseDetails from the request body
-    const { rationId } = req.body;
+    const { houseDetails } = req.body;
     console.log("hi")
 
     // Ensure houseDetails is provided
-    if (!rationId) {
+    if (!houseDetails) {
       return res.status(400).json({ error: 'houseDetails is required' });
     }
 
     // Query the database for the house details
-    const data = await VerifiedUsers.find({ rationId }).select('name dateOfBirth gender mobileNo aadhaarNo occupation photo income  ');
+    const data = await VerifiedUsers.find({ houseDetails }).select('name dateOfBirth gender houseDetails place locality district mobileNo aadhaarNo rationId');
     console.log(data)
     
 
@@ -335,7 +277,6 @@ router.post('/housedetails', authenticateToken, async (req, res) => {
 router.post("/create_survey", authenticateToken, async (req, res) => {
   try {
     const { title, question, options } = req.body;
-    console.log("goverment")
    
     const creator = req.user.username;
     console.log(req.user.username)
@@ -455,51 +396,47 @@ router.post("/completesurvey", authenticateToken, async (req, res) => {
 
 
 
-router.get('/profile/:username', authenticateToken, async (req, res) => {
+// GET /government/profile/:username
+router.get('/profile/:username', async (req, res) => {
   try {
     const { username } = req.params;
-    console.log(`Fetching profile for username: ${username}`);
 
-    // Case-insensitive search and proper field selection
-    const user = await LocalGovernment.findOne({ 
-      username: { $regex: new RegExp(`^${username}$`, 'i') }
-    }).select('-password -__v -tokens');
+    // Find user by username
+    const user = await LocalGovernment.findOne({ username });
+    console.log(user)
 
     if (!user) {
-      console.log(`User not found: ${username}`);
       return res.status(404).json({ 
-        success: false,
-        message: 'Government user not found'
+        success: false, 
+        message: 'User not found' 
       });
     }
 
-    console.log('Found user:', user);
-    
-    const profileData = {
+    // Remove sensitive information
+    const userProfile = {
       _id: user._id,
-      selfGovType: user.selfGovType,
-      district: user.district,
-      locality: user.locality,
+      name: user.fullName,
+      username: user.username,
       email: user.email,
-      phone: user.phone,
-      username: user.username,  
-      createdAt: user.createdAt
+      mobileNo: user.mobile,
+      district: user.district,
+      selfGovType: user.selfGovType,
+      localBody: user.localBody,
+      photo: user.photo
     };
 
-    res.status(200).json({
-      success: true,
-      data: profileData
-    });
-
+    res.json(userProfile);
   } catch (error) {
-    console.error('Profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching government profile',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching profile data' 
     });
   }
 });
+
+
+
 
 
 
