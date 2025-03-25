@@ -538,6 +538,7 @@ router.post('/poling', authenticateToken, async (req, res) => {
         { access: presidentId }
       ]
     });
+    console.log(allSurveys)
 
     // 2. Find all surveys this user has already voted in
     const userResults = await Result.find({ user: username });

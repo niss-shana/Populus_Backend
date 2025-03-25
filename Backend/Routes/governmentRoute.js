@@ -6,6 +6,7 @@ import Survey from '../models/Survey.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
+import admin from '../Models/admin.js';
 
 const router = express.Router();
 
@@ -30,6 +31,14 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Replace the global middleware with:
+router.use((req, res, next) => {
+  const publicRoutes = ['/login', '/signup', '/verify-user','/users','/admin_login'];
+  if (publicRoutes.some(route => req.path.startsWith(route))) {
+    return next();
+  }
+  authenticateToken(req, res, next);
+});
+
 router.get('/users', async (req, res) => {
   try {
     // Try to get the current username from request body or headers
@@ -217,6 +226,85 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Login failed' });
     }
 });
+
+
+
+
+router.post('/admin_login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const trimmedUsername = username.trim();
+
+    // Case-insensitive search
+    const user = await admin.findOne({ 
+      username: { $regex: new RegExp(`^${trimmedUsername}$`, 'i') }
+    });
+
+    console.log('User found:', user); // Debugging
+
+    if (!user) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'Authentication failed - user not found' 
+      });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    
+    if (!passwordMatch) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'Authentication failed - wrong password' 
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user._id, username: user.username },
+      process.env.JWT_KEY,
+      { expiresIn: '365d' }
+    );
+
+    res.status(200).json({ 
+      success: true,
+      message: "Login Success",
+      token,
+      user: {
+        id: user._id,
+        username: user.username
+      }
+    });
+
+  } catch (error) {
+    console.error("Login Error:", error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Login failed' 
+    });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 router.post('/update-password', authenticateToken, async (req, res) => {
   try {
