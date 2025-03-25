@@ -29,7 +29,7 @@ const depSchema = new mongoose.Schema({
       message: props => `${props.value} is not a valid email address!`
     }
   },
-  username: { type: String, required: true, unique: true },
+  username: { type: String, required: true },
   password: { type: String, required: true },
   district:{type:String},
   phone: { 

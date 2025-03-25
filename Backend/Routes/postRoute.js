@@ -183,7 +183,6 @@ router.get('/display', async (req, res) => {
       access: { $in: accessArray } 
     }).sort({ createdAt: -1 }); // Sort by newest first
     
-    console.log("Filtered announcements:", announcements);
     res.json({ announcements });
   } catch (error) {
     console.error('Error fetching announcements:', error);

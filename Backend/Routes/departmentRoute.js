@@ -43,12 +43,26 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Apply the middleware globally to all routes except `/login` and `/signup`
+// Apply auth middleware conditionally
 router.use((req, res, next) => {
-  if (req.path === '/login' || req.path === '/signup' ) {
-    return next(); // Skip authentication for these routes
+  // Array of routes/methods to exclude from auth
+  const publicRoutes = [
+    { path: '/login', methods: ['GET', 'POST'] },
+    { path: '/signup', methods: ['GET', 'POST'] },
+    { path: '/profile', methods: ['GET'] } // All GET /profile/* routes
+  ];
+
+  const isPublic = publicRoutes.some(route => 
+    req.path.toLowerCase().startsWith(route.path.toLowerCase()) &&
+    route.methods.includes(req.method)
+  );
+
+  if (isPublic) {
+    return next();
   }
-  authenticateToken(req, res, next); // Apply authentication to all other routes
+  
+  // Apply authentication to all other routes
+  authenticateToken(req, res, next);
 });
 
 
@@ -133,40 +147,47 @@ router.post('/signup', async (req, res) => {
 
 
 // GET /government/profile/:username
-router.get('/profile/:username', async (req, res) => {
+router.get('/profile/:userId', async (req, res) => {
   try {
-    const { username } = req.params;
+    const { userId } = req.params;
+    console.log(userId);
+    
 
-    // Find user by username
-    const user = await Department.findOne({ username });
-    console.log(user)
+    // Find department by ID
+    const department = await Department.findById(userId)
+      .select('-password -tokens -__v'); // Exclude sensitive fields
 
-    if (!user) {
+    if (!department) {
       return res.status(404).json({ 
         success: false, 
-        message: 'User not found' 
+        message: 'Department not found' 
       });
     }
 
-    // Remove sensitive information
-    const userProfile = {
-      _id: user._id,
-      name: user.fullName,
-      username: user.username,
-      email: user.email,
-      mobileNo: user.mobile,
-      district: user.district,
-      department: user.department,
-      locality: user.localBody,
-      photo: user.photo
+    // Prepare response data
+    const departmentProfile = {
+      _id: department._id,
+      departmentName: department.departmentName,
+      username: department.username,
+      email: department.email,
+      phone: department.phone,
+      district: department.district,
+      accessAreas: department.accessAreas,
+      createdAt: department.createdAt,
+      
     };
 
-    res.json(userProfile);
+    res.status(200).json({
+      success: true,
+      data: departmentProfile
+    });
+
   } catch (error) {
-    console.error('Profile fetch error:', error);
+    console.error('Department profile fetch error:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Error fetching profile data' 
+      message: 'Error fetching department profile',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

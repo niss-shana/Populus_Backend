@@ -29,14 +29,14 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Apply the middleware globally to all routes except `/login` and `/signup`
+// Replace the global middleware with:
 router.use((req, res, next) => {
-  if (req.path === '/login' || req.path === '/signup'|| '/verify-user' ) {
-    return next(); // Skip authentication for these routes
+  const publicRoutes = ['/login', '/signup', '/verify-user'];
+  if (publicRoutes.some(route => req.path.startsWith(route))) {
+    return next();
   }
-  authenticateToken(req, res, next); // Apply authentication to all other routes
+  authenticateToken(req, res, next);
 });
-
 
 router.get('/users', async (req, res) => {
   try {
@@ -186,7 +186,7 @@ router.post('/signup', async (req, res) => {
     console.log("Local government add");
     console.log(req.body);
 
-    const { locality, phone, email } = req.body;
+    const { locality, phone, email,district } = req.body;
 
     // Validate required fields
     if (!locality || !phone || !email) {
@@ -212,6 +212,7 @@ router.post('/signup', async (req, res) => {
       locality,
       email,
       district,
+      phone,
       username, // Set username as locality
       password: hashedPassword, // Set password as hashed phone number
     });
@@ -454,46 +455,51 @@ router.post("/completesurvey", authenticateToken, async (req, res) => {
 
 
 
-// GET /government/profile/:username
-router.get('/profile/:username', async (req, res) => {
+router.get('/profile/:username', authenticateToken, async (req, res) => {
   try {
     const { username } = req.params;
+    console.log(`Fetching profile for username: ${username}`);
 
-    // Find user by username
-    const user = await LocalGovernment.findOne({ username });
-    console.log(user)
+    // Case-insensitive search and proper field selection
+    const user = await LocalGovernment.findOne({ 
+      username: { $regex: new RegExp(`^${username}$`, 'i') }
+    }).select('-password -__v -tokens');
 
     if (!user) {
+      console.log(`User not found: ${username}`);
       return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
+        success: false,
+        message: 'Government user not found'
       });
     }
 
-    // Remove sensitive information
-    const userProfile = {
+    console.log('Found user:', user);
+    
+    const profileData = {
       _id: user._id,
-      username: user.username,
-      email: user.email,
-      mobileNo: user.phone,
-      district: user.district,
       selfGovType: user.selfGovType,
-      localBody: user.localBody,
-      photo: user.photo
+      district: user.district,
+      locality: user.locality,
+      email: user.email,
+      phone: user.phone,
+      username: user.username,  
+      createdAt: user.createdAt
     };
 
-    res.json(userProfile);
+    res.status(200).json({
+      success: true,
+      data: profileData
+    });
+
   } catch (error) {
-    console.error('Profile fetch error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error fetching profile data' 
+    console.error('Profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching government profile',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
-
-
-
 
 
 
