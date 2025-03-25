@@ -2,11 +2,16 @@ import express  from 'express';
 import RequestUsers from '../models/requser.js';
 import VerifiedUsers from '../models/verUsers.js';
 import LocalGovernment from '../models/locgov.js';
-import Department from '../models/department.js';
-const router = express.Router();import bcrypt from 'bcrypt';
+import Survey from '../models/Survey.js';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
+import Department from '../models/department.js';
+const router = express.Router();
+
 import Announcement from '../models/announcement.js';
+const saltRounds = 10;
+
 
 // Configure email transporter
 const transporter = nodemailer.createTransport({
@@ -16,6 +21,9 @@ const transporter = nodemailer.createTransport({
     pass: 'vinw nsoq fykj hovv',
   },
 });
+
+
+
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -35,6 +43,13 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Apply the middleware globally to all routes except `/login` and `/signup`
+router.use((req, res, next) => {
+  if (req.path === '/login' || req.path === '/signup' ) {
+    return next(); // Skip authentication for these routes
+  }
+  authenticateToken(req, res, next); // Apply authentication to all other routes
+});
 
 
 router.post('/signup', async (req, res) => {
@@ -112,6 +127,49 @@ router.post('/signup', async (req, res) => {
   }
 });
 
+
+
+
+
+
+// GET /government/profile/:username
+router.get('/profile/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    // Find user by username
+    const user = await Department.findOne({ username });
+    console.log(user)
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Remove sensitive information
+    const userProfile = {
+      _id: user._id,
+      name: user.fullName,
+      username: user.username,
+      email: user.email,
+      mobileNo: user.mobile,
+      district: user.district,
+      department: user.department,
+      locality: user.localBody,
+      photo: user.photo
+    };
+
+    res.json(userProfile);
+  } catch (error) {
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching profile data' 
+    });
+  }
+});
 
 
 router.post('/login', async (req, res) => {
@@ -232,7 +290,53 @@ router.get('/profile/:userId', async (req, res) => {
 
 
 
+router.post("/create_survey", authenticateToken, async (req, res) => {
+  try {
+    const { title, question, options } = req.body;
+    const creator = req.user.username;
+    const profile = "local_government";
 
+    // Validate input
+    if (!title || !question || !options || options.length < 2 || options.length > 4) {
+      return res.status(400).json({ 
+        message: "Invalid survey data. Ensure title, question, and 2-4 options are provided." 
+      });
+    }
+
+    // Get access areas directly as an array
+    const department = await Department.findOne(
+      { username: creator },
+      { accessAreas: 1, _id: 0 }
+    );
+
+    if (!department) {
+      return res.status(404).json({ message: "Department not found" });
+    }
+
+    // Create a new survey with simplified access structure
+    const newSurvey = new Survey({ 
+      title, 
+      question, 
+      options, 
+      creator,
+      profile,
+      access: department.accessAreas // Directly use the array of access areas
+    });
+
+    await newSurvey.save();
+
+    res.status(201).json({ 
+      message: "Survey created successfully", 
+      survey: newSurvey 
+    });
+  } catch (error) {
+    console.error("Error saving survey:", error);
+    res.status(500).json({ 
+      message: "Internal server error", 
+      error: error.message 
+    });
+  }
+});
 
 
 
@@ -241,3 +345,4 @@ router.get('/profile/:userId', async (req, res) => {
 
 
 export default router
+

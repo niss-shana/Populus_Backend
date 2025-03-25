@@ -31,7 +31,7 @@ const authenticateToken = (req, res, next) => {
 
 // Apply the middleware globally to all routes except `/login` and `/signup`
 router.use((req, res, next) => {
-  if (req.path === '/login' || req.path === '/signup'|| '/verify-user' ||'/map'||'/housedetails' ) {
+  if (req.path === '/login' || req.path === '/signup'|| '/verify-user' ) {
     return next(); // Skip authentication for these routes
   }
   authenticateToken(req, res, next); // Apply authentication to all other routes
@@ -93,25 +93,41 @@ router.post('/adding_residents', async (req, res) => {
 
 
 
-
 router.post('/verify-user', async (req, res) => {
   try {
-    const { _id, ...userDetails } = req.body; // Extract user details
-    userDetails.presidentId = req.body.presidentId || 'unknown'; // Add presidentId
+    const { _id, ...userDetails } = req.body;
+    userDetails.presidentId = req.body.presidentId || 'unknown';
 
+    // Step 1: Attempt to save the verified user
     const verifiedUser = new VerifiedUsers(userDetails);
-    await verifiedUser.save(); // Save to verified users collection
+    const savedUser = await verifiedUser.save();
+    console.log( savedUser)
+    console.log( "user keri")
 
-    // Remove the user from unverified collection
-    await RequestUsers.findByIdAndDelete(_id);
+    // Step 2: Check if the save was successful (optional, since `save()` throws on failure)
+    if (!savedUser) {
+      throw new Error("Failed to save verified user.");
+    }
 
-    res.status(200).json({ message: 'User verified successfully.' });
+    // Step 3: Only delete from unverified if the above succeeded
+    const deletionResult = await RequestUsers.findByIdAndDelete(_id);
+    if (!deletionResult) {
+      console.warn("User was verified, but deletion from unverified failed.");
+      // You might want to handle this case (e.g., log it or retry)
+    }
+
+    res.status(200).json({ 
+      message: 'User verified successfully.',
+      verifiedUser: savedUser
+    });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: error.message,
+      message: 'Failed to verify user. No changes were made.'
+    });
   }
 });
-
-
 
 
 
@@ -244,15 +260,23 @@ router.post('/signup', async (req, res) => {
 
 
 
-router.post('/map', async (req, res) => {
+
+router.post('/map', authenticateToken, async (req, res) => {
   try {
-    console.log("ethi")
-    const data = await VerifiedUsers.find(); // Fetch data from the database
+    const username = req.user.username;
+    console.log("Fetching map data for president:", username);
+    
+    // Fetch only the required fields where presidentId matches the username
+    const data = await VerifiedUsers.find(
+      { presidentId: username },
+      { houseDetails: 1, mappedHouse: 1, wardNumber: 1, rationId:1, _id: 0 }
+    );
+    
     console.log(data);
 
-    if (!data) {
-      console.log("error");
-      return res.status(401).json({ success: false, error: "No data found" }); // Send error message if data is not found
+    if (!data || data.length === 0) {
+      console.log("No data found for president:", username);
+      return res.status(404).json({ success: false, error: "No data found" });
     }
     
     // Send data to the frontend with a success message
@@ -262,8 +286,8 @@ router.post('/map', async (req, res) => {
       data: data 
     });
   } catch (error) {
-    console.error(error); // Log the error for debugging
-    res.status(500).json({ success: false, error: "Internal Server Error" }); // Send error response
+    console.error("Error in /map route:", error);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
   }
 });
 
@@ -272,22 +296,22 @@ router.post('/map', async (req, res) => {
 
 
 
-router.post('/housedetails',authenticateToken, async (req, res) => {
+router.post('/housedetails', authenticateToken, async (req, res) => {
   try {
     console.log("labeeee")
     console.log(req.body)
     console.log("hi")
     // Retrieve houseDetails from the request body
-    const { houseDetails } = req.body;
+    const { rationId } = req.body;
     console.log("hi")
 
     // Ensure houseDetails is provided
-    if (!houseDetails) {
+    if (!rationId) {
       return res.status(400).json({ error: 'houseDetails is required' });
     }
 
     // Query the database for the house details
-    const data = await VerifiedUsers.find({ houseDetails }).select('name dateOfBirth gender houseDetails place locality district mobileNo aadhaarNo rationId');
+    const data = await VerifiedUsers.find({ rationId }).select('name dateOfBirth gender mobileNo aadhaarNo occupation photo income  ');
     console.log(data)
     
 
@@ -310,6 +334,7 @@ router.post('/housedetails',authenticateToken, async (req, res) => {
 router.post("/create_survey", authenticateToken, async (req, res) => {
   try {
     const { title, question, options } = req.body;
+    console.log("goverment")
    
     const creator = req.user.username;
     console.log(req.user.username)

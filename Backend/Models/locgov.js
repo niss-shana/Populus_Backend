@@ -10,5 +10,5 @@ const govSchema = new mongoose.Schema({
   password: { type: String, required: true },
 }, { timestamps: true }); // Adds createdAt and updatedAt fields automatically
 
-const LocalGovernment = mongoose.model('LocalGovernment', govSchema);
+const LocalGovernment = mongoose.models.LocalGovernment || mongoose.model('LocalGovernment', govSchema);
 export default LocalGovernment;
