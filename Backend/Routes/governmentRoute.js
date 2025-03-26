@@ -145,14 +145,23 @@ router.post('/adding_residents', authenticateToken, async (req, res) => {
 
 
 
-const nodemailer = require('nodemailer');
-
 
 
 router.post('/verify-user', async (req, res) => {
   try {
     const { _id, ...userDetails } = req.body;
     userDetails.presidentId = req.body.presidentId || 'unknown';
+    
+     // Check if user already exists in verified users
+     const existingUser = await VerifiedUsers.findOne({ email });
+     if (existingUser) {
+       return res.status(400).json({
+         success: false,
+         error: 'User already verified',
+         message: 'This user has already been verified and exists in the system'
+       });
+     }
+ 
 
     // Save verified user
     const verifiedUser = new VerifiedUsers(userDetails);
