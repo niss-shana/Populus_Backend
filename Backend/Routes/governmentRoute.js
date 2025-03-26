@@ -145,38 +145,108 @@ router.post('/adding_residents', authenticateToken, async (req, res) => {
 
 
 
+const nodemailer = require('nodemailer');
+
+// Email transporter (configure properly in production)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_FROM, // e.g., no-reply@yourdomain.com
+    pass: process.env.EMAIL_PASSWORD,
+  },
+});
+
 router.post('/verify-user', async (req, res) => {
   try {
     const { _id, ...userDetails } = req.body;
     userDetails.presidentId = req.body.presidentId || 'unknown';
 
-    // Step 1: Attempt to save the verified user
+    // Save verified user
     const verifiedUser = new VerifiedUsers(userDetails);
     const savedUser = await verifiedUser.save();
-    console.log( savedUser)
-    console.log( "user keri")
 
-    // Step 2: Check if the save was successful (optional, since `save()` throws on failure)
-    if (!savedUser) {
-      throw new Error("Failed to save verified user.");
-    }
+    // Remove from unverified
+    await RequestUsers.findByIdAndDelete(_id);
 
-    // Step 3: Only delete from unverified if the above succeeded
-    const deletionResult = await RequestUsers.findByIdAndDelete(_id);
-    if (!deletionResult) {
-      console.warn("User was verified, but deletion from unverified failed.");
-      // You might want to handle this case (e.g., log it or retry)
-    }
+    // Send email
+    await transporter.sendMail({
+      from: `"POPULUS Team" <${process.env.EMAIL_USER}>`,
+      to: savedUser.email,
+      subject: 'Account Verified - You Can Now Log In',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { 
+                    font-family: Arial, sans-serif; 
+                    line-height: 1.6; 
+                    color: #333; 
+                    max-width: 600px; 
+                    margin: 0 auto; 
+                    padding: 20px;
+                }
+                .header { 
+                    background-color: #2c3e50; 
+                    padding: 20px; 
+                    text-align: center; 
+                    color: white;
+                }
+                .button { 
+                    display: inline-block; 
+                    padding: 12px 24px; 
+                    background-color: #3498db; 
+                    color: white; 
+                    text-decoration: none; 
+                    border-radius: 4px; 
+                    margin: 15px 0;
+                }
+                .footer { 
+                    margin-top: 20px; 
+                    font-size: 12px; 
+                    color: #777; 
+                    text-align: center;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Account Verified</h1>
+            </div>
+            
+            <p>Dear ${savedUser.name || 'User'},</p>
+            
+            <p>Your account has been successfully verified by our team.</p>
+            
+            <p>You may now:</p>
+            <ul>
+                <li>Log in using your credentials</li>
+                <li>Access all platform features</li>
+                <li>Update your profile information</li>
+            </ul>
+            
+            <p>If you have any questions, reply to this email or contact support.</p>
+            
+            <div class="footer">
+                <p>© ${new Date().getFullYear()} Your Platform Name</p>
+            </div>
+        </body>
+        </html>
+      `,
+    });
 
     res.status(200).json({ 
-      message: 'User verified successfully.',
-      verifiedUser: savedUser
+      success: true,
+      message: 'User verified and notification sent',
+      data: savedUser
     });
 
   } catch (error) {
     res.status(500).json({ 
-      error: error.message,
-      message: 'Failed to verify user. No changes were made.'
+      success: false,
+      error: 'Verification failed',
+      details: error.message
     });
   }
 });
