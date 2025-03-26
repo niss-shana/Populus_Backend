@@ -147,14 +147,7 @@ router.post('/adding_residents', authenticateToken, async (req, res) => {
 
 const nodemailer = require('nodemailer');
 
-// Email transporter (configure properly in production)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_FROM, // e.g., no-reply@yourdomain.com
-    pass: process.env.EMAIL_PASSWORD,
-  },
-});
+
 
 router.post('/verify-user', async (req, res) => {
   try {
