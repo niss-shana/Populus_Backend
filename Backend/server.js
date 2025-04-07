@@ -8,7 +8,7 @@ import governmentRoute from './Routes/governmentRoute.js'
 import departmentRoute from './Routes/departmentRoute.js'
 import postRoute from './Routes/postRoute.js'
 import analyticsRoute from './Routes/analyticsRoute.js'
-
+import feedbackRoute from './Routes/feedbackRoute.js'
  
 dotenv.config();
 
@@ -28,7 +28,7 @@ app.use('/government', governmentRoute);
 app.use('/department', departmentRoute);
 app.use('/posts', postRoute);
 app.use('/analytics', analyticsRoute);
-
+app.use('/feedback',feedbackRoute);
 
 
 // Connect to MongoDB

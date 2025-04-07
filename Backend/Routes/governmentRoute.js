@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import admin from '../Models/admin.js';
+import Feedback from '../models/feedback.js';
 
 const router = express.Router();
 
@@ -793,6 +794,64 @@ router.get('/profile/:username', authenticateToken, async (req, res) => {
       message: 'Error fetching government profile',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
+  }
+});
+
+router.get('/gov_display', authenticateToken, async (req, res) => {
+  try {
+    const access  = req.user.username;
+    console.log(access);
+    if (!access) {
+      return res.status(400).json({ message: 'Access parameter is required' });
+    }
+
+    // Get feedbacks matching the access level
+    const feedbacks = await Feedback.find({ access })
+      .sort({ createdAt: -1 }) // Sort by newest first
+      .select('-__v');
+    
+    res.json(feedbacks);
+  } catch (error) {
+    console.error('Error fetching feedbacks:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.patch('/:id/do', authenticateToken, async (req, res) => {
+  try {
+    const { status } = req.body;
+    console.log(status);
+    // Validate status
+    if (!status || !['pending', 'inProgress', 'resolved'].includes(status)) {
+      return res.status(400).json({ message: 'Valid status is required' });
+    }
+
+    // Find feedback
+    const feedback = await Feedback.findById(req.params.id);
+    
+    if (!feedback) {
+      return res.status(404).json({ message: 'Feedback not found' });
+    }
+
+    
+
+    // Update status
+    feedback.status = status;
+    
+    // Add audit trail if needed
+    // feedback.statusHistory.push({ status, updatedBy: req.user.id, updatedAt: Date.now() });
+    
+    await feedback.save();
+    
+    res.json(feedback);
+  } catch (error) {
+    console.error('Error updating feedback:', error);
+    
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Feedback not found' });
+    }
+    
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
