@@ -479,9 +479,9 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: "Invalid phone number format (must be 10 digits)" });
     }
 
-    // Generate username: locality + random 4 digits
-    const randomDigits = Math.floor(1000 + Math.random() * 9000);
-    const username = `${locality.replace(/\s+/g, '_').toLowerCase()}_${randomDigits}`;
+    // // Generate username: locality + random 4 digits
+    // const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    // const username = `${locality.replace(/\s+/g, '_').toLowerCase()}_${randomDigits}`;
     
     // Generate random 8-character password
     const password = Math.random().toString(36).slice(-8);
@@ -497,7 +497,7 @@ router.post('/signup', async (req, res) => {
       email,
       district,
       phone,
-      username,
+      username:locality,
       password: hashedPassword,
     });
 
