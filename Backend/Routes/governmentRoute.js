@@ -31,6 +31,124 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+router.get('/verifiedusers', async (req, res) => {
+  try {
+    // Log all incoming request details
+    console.log('Incoming Verified Users Request:', {
+      method: req.method,
+      headers: JSON.stringify(req.headers),
+      body: JSON.stringify(req.body),
+      query: JSON.stringify(req.query)
+    });
+
+    // Try to get the current username from request body or headers
+    const currentUsername = req.body.currentUsername || req.headers['x-username'];
+
+    // Detailed username logging
+    console.log('Extracted Username:', {
+      currentUsername,
+      bodyUsername: req.body.currentUsername,
+      headerUsername: req.headers['x-username']
+    });
+
+    // If no username is provided, return an error
+    if (!currentUsername) {
+      console.error('Missing Username Error', {
+        body: req.body,
+        headers: req.headers
+      });
+      return res.status(400).json({ 
+        message: 'Current username is required',
+        details: {
+          bodyKeys: Object.keys(req.body),
+          headerKeys: Object.keys(req.headers)
+        }
+      });
+    }
+
+    // Log database query details
+    console.log('Searching for users with locality:', currentUsername);
+
+    // Find users whose locality matches the current username
+    const usersQuery = { locality: currentUsername };
+    
+    // Additional logging for query
+    console.log('Full Query Object:', usersQuery);
+
+    // Perform the database query with additional logging
+    const users = await VerifiedUsers.find(usersQuery)
+      .lean() // Convert to plain JavaScript objects for easier logging
+      .catch(queryError => {
+        console.error('Database Query Error:', {
+          error: queryError.message,
+          stack: queryError.stack,
+          query: usersQuery
+        });
+        throw queryError; // Re-throw to be caught by outer catch block
+      });
+
+    // Detailed users logging
+    console.log('Query Results:', {
+      usersCount: users.length,
+      userIds: users.map(user => user._id),
+      userLocalities: users.map(user => user.locality)
+    });
+
+    // Check if any users were found
+    if (!users || users.length === 0) {
+      console.warn('No Users Found', {
+        searchCriteria: usersQuery,
+        message: 'No users found for the given locality'
+      });
+
+      // Optional: Log all existing localities for debugging
+      const allLocalities = await VerifiedUsers.distinct('locality');
+      console.log('All Available Localities:', allLocalities);
+
+      return res.status(404).json({ 
+        message: 'No users found',
+        searchCriteria: usersQuery,
+        availableLocalities: allLocalities
+      });
+    }
+
+    // Return the found users
+    res.json(users);
+
+  } catch (error) {
+    // Comprehensive error logging
+    console.error('Verified Users Fetch Error:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      requestDetails: {
+        method: req.method,
+        url: req.url,
+        headers: JSON.stringify(req.headers),
+        body: JSON.stringify(req.body)
+      }
+    });
+
+    // Differentiated error responses
+    if (error.name === 'ValidationError') {
+      res.status(400).json({ 
+        error: 'Validation Error', 
+        details: error.errors 
+      });
+    } else if (error.name === 'MongoError' || error.name === 'MongooseError') {
+      res.status(500).json({ 
+        error: 'Database Error', 
+        message: error.message 
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to fetch users', 
+        message: error.message 
+      });
+    }
+  }
+});
+
 // Replace the global middleware with:
 router.use((req, res, next) => {
   const publicRoutes = ['/login', '/signup', '/verify-user','/users','/admin_login'];
